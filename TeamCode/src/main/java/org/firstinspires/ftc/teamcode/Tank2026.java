@@ -3,7 +3,6 @@ package org.firstinspires.ftc.teamcode;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
-import com.qualcomm.robotcore.hardware.Servo;
 
 @TeleOp(name = "TankDrive2026", group = "TeleOp")
 class TankDrive2026 extends OpMode {
@@ -11,6 +10,8 @@ class TankDrive2026 extends OpMode {
     private DcMotor rightfrontMotor;
     private DcMotor leftbackMotor;
     private DcMotor rightbackMotor;
+    private DcMotor shootMotorLeft;
+    private DcMotor shootMotorRight;
 
 
     @Override
@@ -19,11 +20,18 @@ class TankDrive2026 extends OpMode {
         rightfrontMotor = hardwareMap.get(DcMotor.class, "rightfront");
         leftbackMotor = hardwareMap.get(DcMotor.class, "leftback");
         rightbackMotor = hardwareMap.get(DcMotor.class, "rightback");
+        shootMotorLeft = hardwareMap.get(DcMotor.class, "shootLeft");
+        shootMotorRight = hardwareMap.get(DcMotor.class, "shootRight");
+
+        // Set motor directions
 
         leftfrontMotor.setDirection(DcMotor.Direction.REVERSE);
         leftbackMotor.setDirection(DcMotor.Direction.REVERSE);
         rightfrontMotor.setDirection(DcMotor.Direction.FORWARD);
         rightbackMotor.setDirection(DcMotor.Direction.FORWARD);
+        shootMotorLeft.setDirection(DcMotor.Direction.FORWARD);
+        shootMotorRight.setDirection(DcMotor.Direction.REVERSE);
+
 
         // Set motor behavior when power is zero (BRAKE stops actively, FLOAT coasts)
         leftfrontMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
@@ -61,11 +69,21 @@ class TankDrive2026 extends OpMode {
             rightBackPower /= max;
         }
 
-        // --- Set Motor Powers ---
+        // --- Set Drive Motor Powers ---
         leftfrontMotor.setPower(leftFrontPower);
         rightfrontMotor.setPower(rightFrontPower);
         leftbackMotor.setPower(leftBackPower);
         rightbackMotor.setPower(rightBackPower);
+
+        // --- Set Shoot Motor Powers ---
+        if (gamepad2.right_bumper) {
+            shootMotorLeft.setPower(1);
+            shootMotorRight.setPower(1);
+        }
+        if (gamepad2.left_bumper){
+            shootMotorLeft.setPower(0);
+            shootMotorRight.setPower(0);
+        }
 
         // --- Telemetry ---
         telemetry.addData("Input Y (Forward)", "%.2f", forward);
@@ -81,6 +99,8 @@ class TankDrive2026 extends OpMode {
         telemetry.addData("Actual RF Power", "%.2f", rightfrontMotor.getPower());
         telemetry.addData("Actual LB Power", "%.2f", leftbackMotor.getPower());
         telemetry.addData("Actual RB Power", "%.2f", rightbackMotor.getPower());
+        telemetry.addData("Shoot Left Power", "%.2f", shootMotorLeft.getPower());
+        telemetry.addData("Shoot Right Power", "%.2f", shootMotorRight.getPower());
         telemetry.update();
     }
 }
