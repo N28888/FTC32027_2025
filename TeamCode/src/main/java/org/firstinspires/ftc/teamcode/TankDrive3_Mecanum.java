@@ -3,9 +3,6 @@ package org.firstinspires.ftc.teamcode;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
-// Optional: Use DcMotorEx if you need its extra features like PID control, but DcMotor works fine
-// import com.qualcomm.robotcore.hardware.DcMotorEx;
-import com.qualcomm.robotcore.hardware.DcMotorSimple;
 
 @TeleOp(name = "TankDrive3_Mecanum", group = "TeleOp3") // Descriptive name.
 public class TankDrive3_Mecanum extends OpMode { // Renamed class
