@@ -2,28 +2,40 @@ package org.firstinspires.ftc.teamcode;
 
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
+import com.qualcomm.robotcore.hardware.CRServo;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.Servo;
 
-@TeleOp(name = "TankDrive2026", group = "TeleOp")
+@TeleOp(name = "TankDrive2026", group = "TeleOp3")
 public class TankDrive2026 extends OpMode {
+    boolean shootMotorStatus;
+    boolean IntakeServoStatus;
     private DcMotor leftfrontMotor;
     private DcMotor rightfrontMotor;
     private DcMotor leftbackMotor;
     private DcMotor rightbackMotor;
     private DcMotor shootMotor;
-    private Servo ballgetleft;
-    private Servo ballgetright;
+    private Servo intakeL;
+    private Servo intakeR;
+    private double intakePower = 0.7;
 
 
 
     @Override
     public void init() {
+        shootMotorStatus = false;
+        IntakeServoStatus = false;
+
+        // --- Hardware Map ---
+
         leftfrontMotor = hardwareMap.get(DcMotor.class, "leftfront");
         rightfrontMotor = hardwareMap.get(DcMotor.class, "rightfront");
         leftbackMotor = hardwareMap.get(DcMotor.class, "leftback");
         rightbackMotor = hardwareMap.get(DcMotor.class, "rightback");
         shootMotor = hardwareMap.get(DcMotor.class, "shoot");
+        intakeL = (Servo) hardwareMap.get(CRServo.class, "intakeL");
+        intakeR = (Servo) hardwareMap.get(CRServo.class, "intakeR");
+
 
         // Set motor directions
 
@@ -43,6 +55,11 @@ public class TankDrive2026 extends OpMode {
         telemetry.addData("Status", "Initialized");
         telemetry.addData(">", "Motor Directions MUST be Verified!");
         telemetry.update();
+
+        // ---Other Init---
+        shootMotor.setPower(0);
+        intakeL.setPosition(0);
+        intakeR.setPosition(0);
     }
 
     @Override
@@ -77,14 +94,24 @@ public class TankDrive2026 extends OpMode {
         rightbackMotor.setPower(rightBackPower);
 
         // --- Set Shoot Motor Powers ---
-        if (gamepad2.right_trigger > 0) {
+        if (gamepad2.right_bumper && !shootMotorStatus){
             shootMotor.setPower(1);
-        }
-        if (gamepad2.right_trigger == 0){
+            shootMotorStatus = true;
+        } else if (gamepad2.right_bumper && shootMotorStatus) {
             shootMotor.setPower(0);
+            shootMotorStatus = false;
         }
 
         // --- Ball Pickup Servo
+        if (gamepad2.right_bumper && !IntakeServoStatus) {
+            intakeL.setPosition(0.8);  // 正转
+            intakeR.setPosition(0.3);
+            IntakeServoStatus = true;
+        } else if (gamepad2.right_bumper && IntakeServoStatus) {
+            intakeL.setPosition(0.5);  // 松开后停止
+            intakeR.setPosition(0.5);
+            IntakeServoStatus = false;
+        }
 
 
         // --- Telemetry ---
