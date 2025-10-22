@@ -3,6 +3,7 @@ package org.firstinspires.ftc.teamcode;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
+import com.qualcomm.robotcore.hardware.Servo;
 
 @TeleOp(name = "TankDrive2026", group = "TeleOp")
 public class TankDrive2026 extends OpMode {
@@ -11,6 +12,9 @@ public class TankDrive2026 extends OpMode {
     private DcMotor leftbackMotor;
     private DcMotor rightbackMotor;
     private DcMotor shootMotor;
+    private Servo ballgetleft;
+    private Servo ballgetright;
+
 
 
     @Override
@@ -73,13 +77,14 @@ public class TankDrive2026 extends OpMode {
         rightbackMotor.setPower(rightBackPower);
 
         // --- Set Shoot Motor Powers ---
-        if (gamepad2.right_bumper) {
+        if (gamepad2.right_trigger > 0) {
             shootMotor.setPower(1);
         }
-        if (gamepad2.left_bumper){
+        if (gamepad2.right_trigger == 0){
             shootMotor.setPower(0);
         }
 
+        // --- Ball Pickup Servo
 
 
         // --- Telemetry ---
