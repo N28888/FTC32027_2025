@@ -1,29 +1,50 @@
-package org.firstinspires.ftc.teamcode;
+package org.firstinspires.ftc.teamcode.teleop;
 
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
+import com.qualcomm.robotcore.hardware.CRServo;
 import com.qualcomm.robotcore.hardware.DcMotor;
 
-@TeleOp(name = "TankDrive3_Mecanum", group = "TeleOp3") // Descriptive name.
-public class TankDrive3_Mecanum extends OpMode { // Renamed class
-
+@TeleOp(name = "TankDrive2026", group = "TeleOp3")
+public class TankDrive2026 extends OpMode {
+    boolean shootMotorStatus;
+    boolean IntakeServoStatus;
     private DcMotor leftfrontMotor;
     private DcMotor rightfrontMotor;
     private DcMotor leftbackMotor;
     private DcMotor rightbackMotor;
+    private DcMotor shootMotor;
+    private CRServo intakeL;
+    private CRServo intakeR;
+
 
 
     @Override
     public void init() {
+        shootMotorStatus = false;
+        IntakeServoStatus = false;
+
+        // --- Hardware Map ---
+
         leftfrontMotor = hardwareMap.get(DcMotor.class, "leftfront");
         rightfrontMotor = hardwareMap.get(DcMotor.class, "rightfront");
         leftbackMotor = hardwareMap.get(DcMotor.class, "leftback");
         rightbackMotor = hardwareMap.get(DcMotor.class, "rightback");
+        shootMotor = hardwareMap.get(DcMotor.class, "shoot");
+        intakeL = hardwareMap.get(CRServo.class, "intakeL");
+        intakeR = hardwareMap.get(CRServo.class, "intakeR");
+
+
+        // Set motor directions
 
         leftfrontMotor.setDirection(DcMotor.Direction.REVERSE);
         leftbackMotor.setDirection(DcMotor.Direction.REVERSE);
         rightfrontMotor.setDirection(DcMotor.Direction.FORWARD);
         rightbackMotor.setDirection(DcMotor.Direction.FORWARD);
+        shootMotor.setDirection(DcMotor.Direction.FORWARD);
+        intakeL.setDirection(CRServo.Direction.FORWARD);
+        intakeR.setDirection(CRServo.Direction.REVERSE);
+
 
         // Set motor behavior when power is zero (BRAKE stops actively, FLOAT coasts)
         leftfrontMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
@@ -34,6 +55,9 @@ public class TankDrive3_Mecanum extends OpMode { // Renamed class
         telemetry.addData("Status", "Initialized");
         telemetry.addData(">", "Motor Directions MUST be Verified!");
         telemetry.update();
+
+        // ---Other Init---
+        shootMotor.setPower(0);
     }
 
     @Override
@@ -61,11 +85,32 @@ public class TankDrive3_Mecanum extends OpMode { // Renamed class
             rightBackPower /= max;
         }
 
-        // --- Set Motor Powers ---
+        // --- Set Drive Motor Powers ---
         leftfrontMotor.setPower(leftFrontPower);
         rightfrontMotor.setPower(rightFrontPower);
         leftbackMotor.setPower(leftBackPower);
         rightbackMotor.setPower(rightBackPower);
+
+        // --- Set Shoot Motor Powers ---
+        if (gamepad2.right_bumper && !shootMotorStatus){
+            shootMotor.setPower(1);
+            shootMotorStatus = true;
+        } else if (gamepad2.right_bumper && shootMotorStatus) {
+            shootMotor.setPower(0);
+            shootMotorStatus = false;
+        }
+
+        // --- Ball Pickup Servo
+        if (gamepad2.right_bumper && !IntakeServoStatus) {
+            intakeL.setPower(1);
+            intakeR.setPower(1);
+            IntakeServoStatus = true;
+        } else if (gamepad2.right_bumper && IntakeServoStatus) {
+            intakeL.setPower(0);
+            intakeR.setPower(0);
+            IntakeServoStatus = false;
+        }
+
 
         // --- Telemetry ---
         telemetry.addData("Input Y (Forward)", "%.2f", forward);
@@ -81,6 +126,8 @@ public class TankDrive3_Mecanum extends OpMode { // Renamed class
         telemetry.addData("Actual RF Power", "%.2f", rightfrontMotor.getPower());
         telemetry.addData("Actual LB Power", "%.2f", leftbackMotor.getPower());
         telemetry.addData("Actual RB Power", "%.2f", rightbackMotor.getPower());
+        telemetry.addData("Shoot Left Power", "%.2f", shootMotor.getPower());
         telemetry.update();
+
     }
 }
