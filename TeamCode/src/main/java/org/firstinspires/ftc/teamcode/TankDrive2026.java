@@ -104,11 +104,11 @@ public class TankDrive2026 extends OpMode {
 
         // --- Ball Pickup Servo
         if (gamepad2.right_bumper && !IntakeServoStatus) {
-            intakeL.setPosition(0.8);  // 正转
+            intakeL.setPosition(0.8);
             intakeR.setPosition(0.3);
             IntakeServoStatus = true;
         } else if (gamepad2.right_bumper && IntakeServoStatus) {
-            intakeL.setPosition(0.5);  // 松开后停止
+            intakeL.setPosition(0.5);
             intakeR.setPosition(0.5);
             IntakeServoStatus = false;
         }
@@ -130,5 +130,6 @@ public class TankDrive2026 extends OpMode {
         telemetry.addData("Actual RB Power", "%.2f", rightbackMotor.getPower());
         telemetry.addData("Shoot Left Power", "%.2f", shootMotor.getPower());
         telemetry.update();
+
     }
 }
