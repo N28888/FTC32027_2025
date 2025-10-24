@@ -5,7 +5,7 @@ import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.CRServo;
 import com.qualcomm.robotcore.hardware.DcMotor;
 
-@TeleOp(name = "TankDrive2026", group = "TeleOp3")
+@TeleOp(name = "TankDrive2026", group = "TeleOp4")
 public class TankDrive2026 extends OpMode {
     boolean shootMotorStatus;
     boolean IntakeServoStatus;
@@ -100,10 +100,9 @@ public class TankDrive2026 extends OpMode {
         }
 
         // --- Ball Pickup Servo
-        if (gamepad2.right_bumper && !IntakeServoStatus) {
-            double intakePower = 1;
-            intakeL.setPower(intakePower);
-            intakeR.setPower(intakePower);
+        if (gamepad2.right_bumper && !IntakeServoStatus) {;
+            intakeL.setPower(1);
+            intakeR.setPower(1);
             IntakeServoStatus = true;
         } else if (gamepad2.right_bumper && IntakeServoStatus) {
             intakeL.setPower(0);
