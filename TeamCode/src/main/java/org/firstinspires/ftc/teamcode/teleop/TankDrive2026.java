@@ -9,14 +9,13 @@ import com.qualcomm.robotcore.hardware.DcMotor;
 public class TankDrive2026 extends OpMode {
     boolean shootMotorStatus;
     boolean IntakeServoStatus;
-    private DcMotor leftfrontMotor;
-    private DcMotor rightfrontMotor;
-    private DcMotor leftbackMotor;
-    private DcMotor rightbackMotor;
+    private DcMotor leftFrontMotor;
+    private DcMotor rightFrontMotor;
+    private DcMotor leftBackMotor;
+    private DcMotor rightBackMotor;
     private DcMotor shootMotor;
     private CRServo intakeL;
     private CRServo intakeR;
-
 
 
     @Override
@@ -26,10 +25,10 @@ public class TankDrive2026 extends OpMode {
 
         // --- Hardware Map ---
 
-        leftfrontMotor = hardwareMap.get(DcMotor.class, "leftfront");
-        rightfrontMotor = hardwareMap.get(DcMotor.class, "rightfront");
-        leftbackMotor = hardwareMap.get(DcMotor.class, "leftback");
-        rightbackMotor = hardwareMap.get(DcMotor.class, "rightback");
+        leftFrontMotor = hardwareMap.get(DcMotor.class, "leftfront");
+        rightFrontMotor = hardwareMap.get(DcMotor.class, "rightfront");
+        leftBackMotor = hardwareMap.get(DcMotor.class, "leftback");
+        rightBackMotor = hardwareMap.get(DcMotor.class, "rightback");
         shootMotor = hardwareMap.get(DcMotor.class, "shoot");
         intakeL = hardwareMap.get(CRServo.class, "intakeL");
         intakeR = hardwareMap.get(CRServo.class, "intakeR");
@@ -37,20 +36,20 @@ public class TankDrive2026 extends OpMode {
 
         // Set motor directions
 
-        leftfrontMotor.setDirection(DcMotor.Direction.REVERSE);
-        leftbackMotor.setDirection(DcMotor.Direction.REVERSE);
-        rightfrontMotor.setDirection(DcMotor.Direction.FORWARD);
-        rightbackMotor.setDirection(DcMotor.Direction.FORWARD);
+        leftFrontMotor.setDirection(DcMotor.Direction.REVERSE);
+        leftBackMotor.setDirection(DcMotor.Direction.REVERSE);
+        rightFrontMotor.setDirection(DcMotor.Direction.FORWARD);
+        rightBackMotor.setDirection(DcMotor.Direction.FORWARD);
         shootMotor.setDirection(DcMotor.Direction.FORWARD);
         intakeL.setDirection(CRServo.Direction.FORWARD);
         intakeR.setDirection(CRServo.Direction.REVERSE);
 
 
         // Set motor behavior when power is zero (BRAKE stops actively, FLOAT coasts)
-        leftfrontMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
-        rightfrontMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
-        leftbackMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
-        rightbackMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        leftFrontMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        rightFrontMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        leftBackMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        rightBackMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
 
         telemetry.addData("Status", "Initialized");
         telemetry.addData(">", "Motor Directions MUST be Verified!");
@@ -86,10 +85,10 @@ public class TankDrive2026 extends OpMode {
         }
 
         // --- Set Drive Motor Powers ---
-        leftfrontMotor.setPower(leftFrontPower);
-        rightfrontMotor.setPower(rightFrontPower);
-        leftbackMotor.setPower(leftBackPower);
-        rightbackMotor.setPower(rightBackPower);
+        leftFrontMotor.setPower(leftFrontPower);
+        rightFrontMotor.setPower(rightFrontPower);
+        leftBackMotor.setPower(leftBackPower);
+        rightBackMotor.setPower(rightBackPower);
 
         // --- Set Shoot Motor Powers ---
         if (gamepad2.right_bumper && !shootMotorStatus){
@@ -102,8 +101,9 @@ public class TankDrive2026 extends OpMode {
 
         // --- Ball Pickup Servo
         if (gamepad2.right_bumper && !IntakeServoStatus) {
-            intakeL.setPower(1);
-            intakeR.setPower(1);
+            double intakePower = 1;
+            intakeL.setPower(intakePower);
+            intakeR.setPower(intakePower);
             IntakeServoStatus = true;
         } else if (gamepad2.right_bumper && IntakeServoStatus) {
             intakeL.setPower(0);
@@ -122,10 +122,10 @@ public class TankDrive2026 extends OpMode {
         telemetry.addData("Calculated LB Power", "%.2f", leftBackPower);
         telemetry.addData("Calculated RB Power", "%.2f", rightBackPower);
         //Display actual power being sent (can differ due to internal limits/control loops)
-        telemetry.addData("Actual LF Power", "%.2f", leftfrontMotor.getPower());
-        telemetry.addData("Actual RF Power", "%.2f", rightfrontMotor.getPower());
-        telemetry.addData("Actual LB Power", "%.2f", leftbackMotor.getPower());
-        telemetry.addData("Actual RB Power", "%.2f", rightbackMotor.getPower());
+        telemetry.addData("Actual LF Power", "%.2f", leftFrontMotor.getPower());
+        telemetry.addData("Actual RF Power", "%.2f", rightFrontMotor.getPower());
+        telemetry.addData("Actual LB Power", "%.2f", leftBackMotor.getPower());
+        telemetry.addData("Actual RB Power", "%.2f", rightBackMotor.getPower());
         telemetry.addData("Shoot Left Power", "%.2f", shootMotor.getPower());
         telemetry.update();
 
