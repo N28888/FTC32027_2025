@@ -1,46 +1,50 @@
 package org.firstinspires.ftc.teamcode.teleop;
-
-import androidx.lifecycle.GenericLifecycleObserver;
-
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.CRServo;
-import com.qualcomm.robotcore.hardware.DcMotor;
-import com.qualcomm.robotcore.hardware.DcMotorSimple;
-import java.lang.Thread;
+
 
 @TeleOp(name = "test", group = "TeleOp4")
 public class test extends OpMode {
 
     private CRServo intakeL;
-    boolean IntakeServoStatus = false;
 
+    // 开关状态：true=一直转，false=停止
+    private boolean IntakeServoStatus = false;
+
+    // 边沿检测：记录上一次 left_bumper 的状态
+    private boolean lastLeftBumper = false;
 
     @Override
     public void init() {
         intakeL = hardwareMap.get(CRServo.class, "intakeL");
+
+        // 上电先停止
+        intakeL.setPower(0.0);
+
+        telemetry.addLine("Init done. Left bumper: toggle intake ON/OFF.");
+        telemetry.update();
     }
 
     @Override
     public void loop() {
-        if (gamepad2.left_bumper && !IntakeServoStatus) {
-//            boolean IntakeServoStatus = false;
-            intakeL.setPower(1);
-//            intakeL.setDirection(DcMotorSimple.Direction.REVERSE);
-            IntakeServoStatus = true;
-//            Thread.sleep(2000);
+        // 边沿触发：从未按 -> 按下 的那个瞬间，才翻转一次状态
+        boolean pressed = gamepad2.left_bumper && !lastLeftBumper;
+        lastLeftBumper = gamepad2.left_bumper;
 
+        if (pressed) {
+            IntakeServoStatus = !IntakeServoStatus; // 开/关切换
         }
-        else if (gamepad2.left_bumper && IntakeServoStatus) {
-            intakeL.setPower(0);
-            IntakeServoStatus = false;
-        }
+
+        // 根据当前状态持续输出功率（使用三元运算符）
+        // 可调速度（0.0~1.0），需要反向可改成负数或在 init() 里 setDirection(REVERSE)
+        double intakePower = 1.0;
+        intakeL.setPower(IntakeServoStatus ? intakePower : 0.0);
 
         // --- Telemetry ---
-        telemetry.addData("Servo", "%.2f", intakeL.getPower());
-
-        telemetry.addData("bumper", gamepad2.left_bumper);
+        telemetry.addData("Intake Power", "%.2f", intakeL.getPower());
+        telemetry.addData("Intake Status", IntakeServoStatus ? "ON" : "OFF");
+        telemetry.addData("Left Bumper (held)", gamepad2.left_bumper);
         telemetry.update();
-
     }
 }
