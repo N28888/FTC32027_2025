@@ -8,20 +8,20 @@ import com.qualcomm.robotcore.hardware.DcMotor;
 @TeleOp(name = "TankDrive2026", group = "TeleOp4")
 public class TankDrive2026 extends OpMode {
     boolean shootMotorStatus;
-    boolean IntakeServoStatus;
+    boolean IntakeMotorStatus;
     private DcMotor leftFrontMotor;
     private DcMotor rightFrontMotor;
     private DcMotor leftBackMotor;
     private DcMotor rightBackMotor;
     private DcMotor shootMotor;
-    private CRServo intakeL;
-    private CRServo intakeR;
+    private DcMotor intakeL;
+    private DcMotor intakeR;
 
 
     @Override
     public void init() {
         shootMotorStatus = false;
-        IntakeServoStatus = false;
+        IntakeMotorStatus = false;
 
         // --- Hardware Map ---
 
@@ -30,8 +30,8 @@ public class TankDrive2026 extends OpMode {
         leftBackMotor = hardwareMap.get(DcMotor.class, "leftback");
         rightBackMotor = hardwareMap.get(DcMotor.class, "rightback");
         shootMotor = hardwareMap.get(DcMotor.class, "shoot");
-        intakeL = hardwareMap.get(CRServo.class, "intakeL");
-        intakeR = hardwareMap.get(CRServo.class, "intakeR");
+        intakeL = hardwareMap.get(DcMotor.class, "intakeL");
+        intakeR = hardwareMap.get(DcMotor.class, "intakeR");
 
 
         // Set motor directions
@@ -41,9 +41,6 @@ public class TankDrive2026 extends OpMode {
         rightFrontMotor.setDirection(DcMotor.Direction.FORWARD);
         rightBackMotor.setDirection(DcMotor.Direction.FORWARD);
         shootMotor.setDirection(DcMotor.Direction.FORWARD);
-        intakeL.setDirection(CRServo.Direction.FORWARD);
-        intakeR.setDirection(CRServo.Direction.REVERSE);
-
 
         // Set motor behavior when power is zero (BRAKE stops actively, FLOAT coasts)
         leftFrontMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
@@ -99,15 +96,15 @@ public class TankDrive2026 extends OpMode {
             shootMotorStatus = false;
         }
 
-        // --- Ball Pickup Servo
-        if (gamepad2.right_bumper && !IntakeServoStatus) {;
+        // --- Ball Pickup Motor
+        if (gamepad2.right_bumper && !IntakeMotorStatus) {;
             intakeL.setPower(1);
             intakeR.setPower(1);
-            IntakeServoStatus = true;
-        } else if (gamepad2.right_bumper && IntakeServoStatus) {
+            IntakeMotorStatus = true;
+        } else if (gamepad2.right_bumper && IntakeMotorStatus) {
             intakeL.setPower(0);
             intakeR.setPower(0);
-            IntakeServoStatus = false;
+            IntakeMotorStatus = false;
         }
 
 
