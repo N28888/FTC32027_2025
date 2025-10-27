@@ -2,13 +2,13 @@ package org.firstinspires.ftc.teamcode.teleop;
 
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
-import com.qualcomm.robotcore.hardware.CRServo;
 import com.qualcomm.robotcore.hardware.DcMotor;
 
 @TeleOp(name = "TankDrive2026", group = "TeleOp4")
 public class TankDrive2026 extends OpMode {
-    boolean shootMotorStatus;
-    boolean IntakeMotorStatus;
+    boolean shootMotorStatus = false;
+    boolean IntakeMotorStatus = false;
+    private boolean lastLeftBumper = false;
     private DcMotor leftFrontMotor;
     private DcMotor rightFrontMotor;
     private DcMotor leftBackMotor;
@@ -18,10 +18,12 @@ public class TankDrive2026 extends OpMode {
     private DcMotor intakeR;
 
 
+
     @Override
     public void init() {
         shootMotorStatus = false;
         IntakeMotorStatus = false;
+
 
         // --- Hardware Map ---
 
@@ -54,6 +56,8 @@ public class TankDrive2026 extends OpMode {
 
         // ---Other Init---
         shootMotor.setPower(0);
+        intakeL.setPower(0.0);
+        intakeR.setPower(0.0);
     }
 
     @Override
@@ -97,15 +101,16 @@ public class TankDrive2026 extends OpMode {
         }
 
         // --- Ball Pickup Motor
-        if (gamepad2.right_bumper && !IntakeMotorStatus) {;
-            intakeL.setPower(1);
-            intakeR.setPower(1);
-            IntakeMotorStatus = true;
-        } else if (gamepad2.right_bumper && IntakeMotorStatus) {
-            intakeL.setPower(0);
-            intakeR.setPower(0);
-            IntakeMotorStatus = false;
+        boolean pressed = gamepad2.left_bumper && !lastLeftBumper;
+        lastLeftBumper = gamepad2.left_bumper;
+
+        if (pressed) {
+            IntakeMotorStatus = !IntakeMotorStatus; // 开/关切换
         }
+
+        double intakePower = 1.0;
+        intakeL.setPower(IntakeMotorStatus ? intakePower : 0.0);
+        intakeR.setPower(intakeL.getPower());
 
 
         // --- Telemetry ---
@@ -123,6 +128,8 @@ public class TankDrive2026 extends OpMode {
         telemetry.addData("Actual LB Power", "%.2f", leftBackMotor.getPower());
         telemetry.addData("Actual RB Power", "%.2f", rightBackMotor.getPower());
         telemetry.addData("Shoot Left Power", "%.2f", shootMotor.getPower());
+        telemetry.addData("Intake Power", "%.2f", intakeL.getPower());
+        telemetry.addData("Intake Status", IntakeMotorStatus ? "ON" : "OFF");
         telemetry.update();
 
     }
