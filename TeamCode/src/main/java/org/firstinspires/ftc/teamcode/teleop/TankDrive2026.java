@@ -40,6 +40,9 @@ public class TankDrive2026 extends OpMode {
         rightBackMotor = hardwareMap.get(DcMotor.class, "rightback");
         shootMotor = hardwareMap.get(DcMotor.class, "shoot");
         intake = hardwareMap.get(DcMotor.class, "intake");
+        pullUp = hardwareMap.get(CRServo.class, "pullup");
+
+
 
 
         // Set motor directions
@@ -63,6 +66,7 @@ public class TankDrive2026 extends OpMode {
         // ---Other Init---
         shootMotor.setPower(0);
         intake.setPower(0.0);
+        pullUp.setPower(0.0);
     }
 
     @Override
@@ -104,9 +108,9 @@ public class TankDrive2026 extends OpMode {
 //            shootMotor.setPower(0);
 //            shootMotorStatus = false;
 //        }
-        boolean pressedRbumper = gamepad2.right_bumper && !lastRightBumper;
+        boolean pressedRBumper = gamepad2.right_bumper && !lastRightBumper;
         lastRightBumper = gamepad2.right_bumper;
-        if (pressedRbumper){
+        if (pressedRBumper) {
             shootMotorStatus = !shootMotorStatus; // 开/关切换
         }
         double shootPower = 1.0;
@@ -129,9 +133,9 @@ public class TankDrive2026 extends OpMode {
 
 
         //-- Ball Pull Up CRServo
-        boolean pressedTpadUp = gamepad2.dpad_up && !lastdepad_up;
+        boolean pressedDpadUp = gamepad2.dpad_up && !lastdepad_up;
         lastdepad_up = gamepad2.dpad_up;
-        if (pressedTpadUp) {
+        if (pressedDpadUp) {
             pullUpStatus = !pullUpStatus; // 开/关切换
         }
         double pullUpPower = 0.7;
