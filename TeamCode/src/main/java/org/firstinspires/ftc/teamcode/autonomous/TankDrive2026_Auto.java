@@ -5,7 +5,7 @@ import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
 
-@Autonomous(name="Auto_Minimal_Time", group="Examples")
+@Autonomous(name="TankDrive2026_auto", group="Auto1")
 public class TankDrive2026_Auto extends LinearOpMode {
     DcMotor leftFront, rightFront, leftBack, rightBack;
     @Override public void runOpMode() {
