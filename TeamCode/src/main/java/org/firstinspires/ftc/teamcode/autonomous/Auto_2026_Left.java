@@ -21,12 +21,23 @@ public class Auto_2026_Left extends LinearOpMode {
         waitForStart();
         if (isStopRequested()) return;
 
-        setAll(1); sleep(3000); // drive forward ~1.2s
+        shoot.setPower(1);
+
+        setAll(1); sleep(3000);
         setAll(0); sleep(150);
         // in-place CW turn
-        leftFront.setPower(-1); leftBack.setPower(-1); rightFront.setPower(1); rightBack.setPower(1);
+        leftFront.setPower(-1);
+        leftBack.setPower(-1);
+        rightFront.setPower(1);
+        rightBack.setPower(1);
         sleep(600);
         setAll(0);
+
     }
-    void setAll(double p){ leftFront.setPower(p); rightFront.setPower(p); leftBack.setPower(p); rightBack.setPower(p); }
+    void setAll(double p){
+        leftFront.setPower(p);
+        rightFront.setPower(p);
+        leftBack.setPower(p);
+        rightBack.setPower(p);
+    }
 }

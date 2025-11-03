@@ -14,7 +14,7 @@ public class AutoTest extends LinearOpMode {
         waitForStart();
         if (isStopRequested()) return;
 
-        setAll(); sleep(500000); // drive forward
+        setAll(); sleep(500000);
     }
     void setAll(){ leftFront.setPower(1); }
 }
