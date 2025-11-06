@@ -18,7 +18,8 @@ public class TankDrive2026 extends OpMode {
     private DcMotor rightFrontMotor;
     private DcMotor leftBackMotor;
     private DcMotor rightBackMotor;
-    private DcMotor shootMotor;
+    private DcMotor shootMotorL;
+    private DcMotor shootMotorR;
     private DcMotor intake;
     private CRServo pullUp;
 
@@ -38,7 +39,8 @@ public class TankDrive2026 extends OpMode {
         rightFrontMotor = hardwareMap.get(DcMotor.class, "rightfront");
         leftBackMotor = hardwareMap.get(DcMotor.class, "leftback");
         rightBackMotor = hardwareMap.get(DcMotor.class, "rightback");
-        shootMotor = hardwareMap.get(DcMotor.class, "shoot");
+        shootMotorL = hardwareMap.get(DcMotor.class, "shootL");
+        shootMotorR = hardwareMap.get(DcMotor.class, "shootR");
         intake = hardwareMap.get(DcMotor.class, "intake");
         pullUp = hardwareMap.get(CRServo.class, "pullup");
 
@@ -51,7 +53,8 @@ public class TankDrive2026 extends OpMode {
         leftBackMotor.setDirection(DcMotor.Direction.REVERSE);
         rightFrontMotor.setDirection(DcMotor.Direction.FORWARD);
         rightBackMotor.setDirection(DcMotor.Direction.FORWARD);
-        shootMotor.setDirection(DcMotor.Direction.FORWARD);
+        shootMotorL.setDirection(DcMotor.Direction.FORWARD);
+        shootMotorR.setDirection(DcMotor.Direction.REVERSE);
 
         // Set motor behavior when power is zero (BRAKE stops actively, FLOAT coasts)
         leftFrontMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
@@ -64,7 +67,8 @@ public class TankDrive2026 extends OpMode {
         telemetry.update();
 
         // ---Other Init---
-        shootMotor.setPower(0);
+        shootMotorL.setPower(0);
+        shootMotorR.setPower(0);
         intake.setPower(0.0);
         pullUp.setPower(0.0);
     }
@@ -114,7 +118,10 @@ public class TankDrive2026 extends OpMode {
             shootMotorStatus = !shootMotorStatus; // 开/关切换
         }
         double shootPower = 1.0;
-        shootMotor.setPower(shootMotorStatus ? shootPower : 0.0);
+        shootMotorL.setPower(shootMotorStatus ? shootPower : 0.0);
+        shootMotorR.setPower(shootMotorL.getPower());
+
+
 
 
 
@@ -156,7 +163,8 @@ public class TankDrive2026 extends OpMode {
         telemetry.addData("Actual RF Power", "%.2f", rightFrontMotor.getPower());
         telemetry.addData("Actual LB Power", "%.2f", leftBackMotor.getPower());
         telemetry.addData("Actual RB Power", "%.2f", rightBackMotor.getPower());
-        telemetry.addData("Shoot Left Power", "%.2f", shootMotor.getPower());
+        telemetry.addData("Shoot Left Power", "%.2f", shootMotorL.getPower());
+        telemetry.addData("Shoot Right Power", "%.2f", shootMotorR.getPower());
         telemetry.addData("Intake Power", "%.2f", intake.getPower());
         telemetry.addData("Intake Status", IntakeMotorStatus ? "ON" : "OFF");
         telemetry.update();

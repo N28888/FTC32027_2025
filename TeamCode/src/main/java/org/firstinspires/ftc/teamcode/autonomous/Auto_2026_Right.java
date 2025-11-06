@@ -7,21 +7,25 @@ import com.qualcomm.robotcore.hardware.DcMotorSimple;
 
 @Autonomous(name="TankDrive2026_auto", group="Auto1")
 public class Auto_2026_Right extends LinearOpMode {
-    DcMotor leftFront, rightFront, leftBack, rightBack, shoot;
+    DcMotor leftFront, rightFront, leftBack, rightBack, shootL, shootR;
     @Override public void runOpMode() {
         leftFront = hardwareMap.dcMotor.get("leftFront");
         rightFront = hardwareMap.dcMotor.get("rightFront");
         leftBack = hardwareMap.dcMotor.get("leftBack");
         rightBack = hardwareMap.dcMotor.get("rightBack");
-        shoot = hardwareMap.dcMotor.get("shoot");
+        shootL = hardwareMap.dcMotor.get("shootL");
+        shootR = hardwareMap.dcMotor.get("shootR");
 
         leftFront.setDirection(DcMotorSimple.Direction.REVERSE);
         leftBack.setDirection(DcMotorSimple.Direction.REVERSE);
-        shoot.setDirection(DcMotorSimple.Direction.REVERSE);
+        shootL.setDirection(DcMotorSimple.Direction.REVERSE);
+        shootR.setDirection(DcMotorSimple.Direction.FORWARD);
+
         waitForStart();
         if (isStopRequested()) return;
 
-        shoot.setPower(1);
+        shootL.setPower(1);
+        shootR.setPower(shootL.getPower());
 
         setAll(1); sleep(3000);
         setAll(0); sleep(150);
