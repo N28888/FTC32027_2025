@@ -105,13 +105,6 @@ public class TankDrive2026 extends OpMode {
         rightBackMotor.setPower(rightBackPower);
 
         // --- Set Shoot Motor Powers ---
-//        if (gamepad2.right_bumper && !shootMotorStatus){
-//            shootMotor.setPower(1);
-//            shootMotorStatus = true;
-//        } else if (gamepad2.right_bumper && shootMotorStatus) {
-//            shootMotor.setPower(0);
-//            shootMotorStatus = false;
-//        }
         boolean pressedRBumper = gamepad2.right_bumper && !lastRightBumper;
         lastRightBumper = gamepad2.right_bumper;
         if (pressedRBumper) {
@@ -123,9 +116,6 @@ public class TankDrive2026 extends OpMode {
 
 
 
-
-
-
         // --- Ball Pickup Motor
         boolean pressedLBumper = gamepad2.left_bumper && !lastLeftBumper;
         lastLeftBumper = gamepad2.left_bumper;
@@ -134,7 +124,6 @@ public class TankDrive2026 extends OpMode {
         }
         double intakePower = 1.0;
         intake.setPower(IntakeMotorStatus ? intakePower : 0.0);
-
 
 
 
