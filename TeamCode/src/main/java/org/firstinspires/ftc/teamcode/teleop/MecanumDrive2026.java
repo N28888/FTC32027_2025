@@ -4,9 +4,10 @@ import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.CRServo;
 import com.qualcomm.robotcore.hardware.DcMotor;
+import com.qualcomm.robotcore.hardware.Servo;
 
 @TeleOp(name = "TankDrive2026", group = "TeleOp4")
-public class TankDrive2026 extends OpMode {
+public class MecanumDrive2026 extends OpMode {
     boolean shootMotorStatus = false;
     boolean IntakeMotorStatus = false;
     boolean pullUpStatus = false;
@@ -22,6 +23,7 @@ public class TankDrive2026 extends OpMode {
     private DcMotor shootMotorR;
     private DcMotor intake;
     private CRServo pullUp;
+    private Servo feed;
 
 
 
