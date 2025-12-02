@@ -8,12 +8,13 @@
 ```
 ### Servo
 ```
-0: pullup CRServo (pullup)
+0: pullup front L CRServo (pullup_frontL)
+4: pullup mid CRServo (pullup_mid)
 ```
 
 ### I2C
 
-```agsl
+```
 1: Huskeylens (cam)
 ```
 
@@ -28,6 +29,8 @@
 ### Servo
 ```
 0: Camera rotation Servo (cam_rotate)
+3: pullup back CRServo (pullup_back)
+4: pullup front R CRServo (pullup_frontR))
 ```
 
 
