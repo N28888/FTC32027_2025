@@ -2,25 +2,43 @@
 ## Control Hub
 ### Motor
 ```
-Drive:
-    Left Front Wheel: leftFront
-    Right Front Wheel: rightFront
-    Left Back Wheel: leftBack
-    Rigth Back Wheel rightback
+0: LF DcMotor (leftback)
+1: LB DcMotor (leftfront)
+2: L_shoot DcMotor (shootL)
+```
+### Servo
+```
+0: pullup CRServo (pullup)
+```
+
+### I2C
+
+```agsl
+1: Huskeylens (cam)
 ```
 
 ## Expansion Hub
 ### Motor
 ```
-Shoot:
-    Left Side Shoot: shootL
-    Right Side Shoot: shootR
+0: RF DcMotor (rightback)
+1: RB DcMotor (rightfront)
+2: R_shoot DcMotor (shootR)
+3: Intake DcMotor (intake)
+```
+### Servo
+```
+0: Camera rotation Servo (cam_rotate)
+```
 
-Get Ball from ground: intake
-```
-### Feed to Shoot
-```
-Servo:
-    Feed to shoot: feed
-    Pull Balls Up: pullup
-```
+
+
+
+
+# Game Controller Config
+
+## Driver 1 
+
+#### Drive: Joystick
+#### Intake: left_bumper
+#### Pullup: dpad_up
+#### Shoot: right_bumper
