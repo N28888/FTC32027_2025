@@ -4,16 +4,15 @@ import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.CRServo;
 import com.qualcomm.robotcore.hardware.DcMotor;
-import com.qualcomm.robotcore.hardware.Servo;
 
-@TeleOp(name = "TankDrive2026", group = "TeleOp4")
+@TeleOp(name = "MecanumDrive2026", group = "TeleOp4")
 public class MecanumDrive2026 extends OpMode {
     boolean shootMotorStatus = false;
     boolean IntakeMotorStatus = false;
     boolean pullUpStatus = false;
-    private boolean lastLeftBumper = false; // Ball PickUp Motor
+    private boolean lastLeftBumper1 = false; // Ball PickUp Motor
     private boolean lastRightBumper = false; // Ball shoot Motor
-    private boolean lastdepad_up = false; // Pull Up CRServo
+    private boolean lastdpad_up = false; // Pull Up CRServo
 
     private DcMotor leftFrontMotor;
     private DcMotor rightFrontMotor;
@@ -22,8 +21,11 @@ public class MecanumDrive2026 extends OpMode {
     private DcMotor shootMotorL;
     private DcMotor shootMotorR;
     private DcMotor intake;
-    private CRServo pullUp;
-    private Servo feed;
+    private CRServo pullUp_back;
+    private CRServo pullUp_mid;
+    private CRServo pullUp_frontL;
+    private CRServo pullUp_frontR;
+
 
 
 
@@ -37,14 +39,20 @@ public class MecanumDrive2026 extends OpMode {
 
         // --- Hardware Map ---
 
+            // --- drive ---
         leftFrontMotor = hardwareMap.get(DcMotor.class, "leftfront");
         rightFrontMotor = hardwareMap.get(DcMotor.class, "rightfront");
         leftBackMotor = hardwareMap.get(DcMotor.class, "leftback");
         rightBackMotor = hardwareMap.get(DcMotor.class, "rightback");
+            // --- shoot ---
         shootMotorL = hardwareMap.get(DcMotor.class, "shootL");
         shootMotorR = hardwareMap.get(DcMotor.class, "shootR");
         intake = hardwareMap.get(DcMotor.class, "intake");
-        pullUp = hardwareMap.get(CRServo.class, "pullup");
+            // --- pull up ---
+        pullUp_back = hardwareMap.get(CRServo.class, "pullup_back");
+        pullUp_frontL = hardwareMap.get(CRServo.class, "pullup_frontL");
+        pullUp_frontR = hardwareMap.get(CRServo.class, "pullup_frontR");
+        pullUp_mid = hardwareMap.get(CRServo.class, "pullup_mid");
 
 
 
@@ -55,8 +63,11 @@ public class MecanumDrive2026 extends OpMode {
         leftBackMotor.setDirection(DcMotor.Direction.REVERSE);
         rightFrontMotor.setDirection(DcMotor.Direction.FORWARD);
         rightBackMotor.setDirection(DcMotor.Direction.FORWARD);
-        shootMotorL.setDirection(DcMotor.Direction.FORWARD);
-        shootMotorR.setDirection(DcMotor.Direction.REVERSE);
+        shootMotorL.setDirection(DcMotor.Direction.REVERSE);
+        shootMotorR.setDirection(DcMotor.Direction.FORWARD);
+        pullUp_back.setDirection(CRServo.Direction.REVERSE);
+        pullUp_frontR.setDirection(CRServo.Direction.REVERSE);
+
 
         // Set motor behavior when power is zero (BRAKE stops actively, FLOAT coasts)
         leftFrontMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
@@ -72,7 +83,10 @@ public class MecanumDrive2026 extends OpMode {
         shootMotorL.setPower(0);
         shootMotorR.setPower(0);
         intake.setPower(0.0);
-        pullUp.setPower(0.0);
+        pullUp_back.setPower(0.0);
+        pullUp_frontL.setPower(0.0);
+        pullUp_frontR.setPower(0.0);
+        pullUp_mid.setPower(0.0);
     }
 
     @Override
@@ -107,20 +121,20 @@ public class MecanumDrive2026 extends OpMode {
         rightBackMotor.setPower(rightBackPower);
 
         // --- Set Shoot Motor Powers ---
-        boolean pressedRBumper = gamepad2.right_bumper && !lastRightBumper;
-        lastRightBumper = gamepad2.right_bumper;
+        boolean pressedRBumper = gamepad1.right_bumper && !lastRightBumper;
+        lastRightBumper = gamepad1.right_bumper;
         if (pressedRBumper) {
             shootMotorStatus = !shootMotorStatus; // 开/关切换
         }
-        double shootPower = 1.0;
+        double shootPower = 0.5;
         shootMotorL.setPower(shootMotorStatus ? shootPower : 0.0);
         shootMotorR.setPower(shootMotorL.getPower());
 
 
 
-        // --- Ball Pickup Motor
-        boolean pressedLBumper = gamepad2.left_bumper && !lastLeftBumper;
-        lastLeftBumper = gamepad2.left_bumper;
+        // --- Intake Motor
+        boolean pressedLBumper = gamepad1.left_bumper && !lastLeftBumper1;
+        lastLeftBumper1 = gamepad1.left_bumper;
         if (pressedLBumper) {
             IntakeMotorStatus = !IntakeMotorStatus; // 开/关切换
         }
@@ -129,15 +143,18 @@ public class MecanumDrive2026 extends OpMode {
 
 
 
-
-        //-- Ball Pull Up CRServo
-        boolean pressedDpadUp = gamepad2.dpad_up && !lastdepad_up;
-        lastdepad_up = gamepad2.dpad_up;
+        //-- PullUp CRServo
+        boolean pressedDpadUp = gamepad1.dpad_up && !lastdpad_up;
+        lastdpad_up = gamepad1.dpad_up;
         if (pressedDpadUp) {
             pullUpStatus = !pullUpStatus; // 开/关切换
         }
         double pullUpPower = 0.7;
-        pullUp.setPower(pullUpStatus ? pullUpPower : 0.0);
+        pullUp_back.setPower(pullUpStatus ? pullUpPower : 0.0);
+        pullUp_frontL.setPower(pullUp_back.getPower());
+        pullUp_frontR.setPower(pullUp_back.getPower());
+        pullUp_mid.setPower(pullUp_back.getPower());
+
 
 
         // --- Telemetry ---
@@ -158,6 +175,10 @@ public class MecanumDrive2026 extends OpMode {
         telemetry.addData("Shoot Right Power", "%.2f", shootMotorR.getPower());
         telemetry.addData("Intake Power", "%.2f", intake.getPower());
         telemetry.addData("Intake Status", IntakeMotorStatus ? "ON" : "OFF");
+        telemetry.addData("Shoot Right Power", "%.2f", pullUp_frontL.getPower());
+        telemetry.addData("Shoot Right Power", "%.2f", pullUp_frontR.getPower());
+        telemetry.addData("Shoot Right Power", "%.2f", pullUp_mid.getPower());
+        telemetry.addData("Shoot Right Power", "%.2f", pullUp_back.getPower());
         telemetry.update();
 
     }
