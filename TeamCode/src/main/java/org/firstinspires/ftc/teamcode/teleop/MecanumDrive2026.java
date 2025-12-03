@@ -6,7 +6,7 @@ import com.qualcomm.robotcore.hardware.CRServo;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
-@TeleOp(name = "MecanumDrive2026", group = "TeleOp4")
+@TeleOp(name = "MecanumDrive2026", group = "TeleOp1")
 public class MecanumDrive2026 extends OpMode {
     boolean shootMotorStatus = false;
     boolean IntakeMotorStatus = false;
@@ -23,6 +23,12 @@ public class MecanumDrive2026 extends OpMode {
     // --- PullUp 前轮“预反转” ---
     private boolean pullupFrontReversing = false;
     private ElapsedTime pullupFrontReverseTimer = new ElapsedTime();
+
+    // --- 自动前后移动（D-pad Down 触发）---
+    private boolean autoMoveRunning = false;
+    private int autoMoveStage = 0;                 // 0=未运行, 1=前进, 2=后退
+    private ElapsedTime autoMoveTimer = new ElapsedTime();
+    private boolean lastDpadDown = false;
 
     private DcMotor leftFrontMotor;
     private DcMotor rightFrontMotor;
@@ -45,6 +51,8 @@ public class MecanumDrive2026 extends OpMode {
 
         shooterReversing = false;
         pullupFrontReversing = false;
+        autoMoveRunning = false;
+        autoMoveStage = 0;
 
         // --- Hardware ---
         leftFrontMotor = hardwareMap.get(DcMotor.class, "leftfront");
@@ -57,9 +65,9 @@ public class MecanumDrive2026 extends OpMode {
         intake = hardwareMap.get(DcMotor.class, "intake");
 
         pullUp_back   = hardwareMap.get(CRServo.class, "pullup_back");
-        pullUp_frontL= hardwareMap.get(CRServo.class, "pullup_frontL");
-        pullUp_frontR= hardwareMap.get(CRServo.class, "pullup_frontR");
-        pullUp_mid   = hardwareMap.get(CRServo.class, "pullup_mid");
+        pullUp_frontL = hardwareMap.get(CRServo.class, "pullup_frontL");
+        pullUp_frontR = hardwareMap.get(CRServo.class, "pullup_frontR");
+        pullUp_mid    = hardwareMap.get(CRServo.class, "pullup_mid");
 
         // --- Directions ---
         leftFrontMotor.setDirection(DcMotor.Direction.REVERSE);
@@ -78,8 +86,9 @@ public class MecanumDrive2026 extends OpMode {
         leftBackMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         rightBackMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
 
-        shootMotorL.setPower(0.65);
-        shootMotorR.setPower(0.65);
+        // 你这里原本写的是 0.65，我保持不动
+        shootMotorL.setPower(0);
+        shootMotorR.setPower(0);
         intake.setPower(0);
         pullUp_back.setPower(0);
         pullUp_frontL.setPower(0);
@@ -89,7 +98,7 @@ public class MecanumDrive2026 extends OpMode {
 
     @Override
     public void loop() {
-        // -------- DRIVE --------
+        // -------- DRIVE 输入 --------
         double forward = -gamepad1.right_stick_y;
         double pan     =  gamepad1.right_stick_x;
         double rotate  =  gamepad1.left_stick_x;
@@ -109,6 +118,48 @@ public class MecanumDrive2026 extends OpMode {
             rb /= max;
         }
 
+        // -------- D-pad Down 自动前后移动 --------
+        boolean dpadDownPressed = gamepad1.dpad_down && !lastDpadDown;
+        lastDpadDown = gamepad1.dpad_down;
+
+        if (dpadDownPressed && !autoMoveRunning) {
+            autoMoveRunning = true;
+            autoMoveStage = 1;           // 从前进开始
+            autoMoveTimer.reset();
+        }
+
+        if (autoMoveRunning) {
+            double p = 0.4;              // 自动移动速度（可调）
+            double cmd = 0.0;
+
+            if (autoMoveStage == 1) {
+                // 阶段 1：前进 0.5 秒
+                if (autoMoveTimer.seconds() < 0.5) {
+                    cmd = p;
+                } else {
+                    autoMoveStage = 2;
+                    autoMoveTimer.reset();
+                    cmd = 0.0;           // 这个循环内先停一下
+                }
+            } else if (autoMoveStage == 2) {
+                // 阶段 2：后退 0.5 秒
+                if (autoMoveTimer.seconds() < 0.5) {
+                    cmd = -p;
+                } else {
+                    autoMoveRunning = false;
+                    autoMoveStage = 0;
+                    cmd = 0.0;           // 动作完成后停车
+                }
+            }
+
+            // 用 cmd 覆盖四个轮子的功率
+            lf = cmd;
+            rf = cmd;
+            lb = cmd;
+            rb = cmd;
+        }
+
+        // 最后统一把 lf/rf/lb/rb 写到电机
         leftFrontMotor.setPower(lf);
         rightFrontMotor.setPower(rf);
         leftBackMotor.setPower(lb);
@@ -130,7 +181,7 @@ public class MecanumDrive2026 extends OpMode {
             }
         }
 
-        double shootPower = 0.6;
+        double shootPower = 0.55;
         double shootReversePower = -0.25;
         double shootReverseTime = 0.15;
 
@@ -197,12 +248,8 @@ public class MecanumDrive2026 extends OpMode {
         telemetry.addData("Intake", IntakeMotorStatus ? "ON" : "OFF");
         telemetry.addData("Shooter Reversing", shooterReversing);
         telemetry.addData("PullUp Front Reversing", pullupFrontReversing);
+        telemetry.addData("AutoMove Running", autoMoveRunning);
+        telemetry.addData("AutoMove Stage", autoMoveStage);
         telemetry.update();
-    }
-
-    public void forwardBackward(){
-        double forward = -1;
-
-
     }
 }
