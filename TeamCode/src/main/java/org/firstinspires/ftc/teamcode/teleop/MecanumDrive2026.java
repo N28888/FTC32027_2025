@@ -4,6 +4,7 @@ import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.CRServo;
 import com.qualcomm.robotcore.hardware.DcMotor;
+import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
 @TeleOp(name = "MecanumDrive2026", group = "TeleOp1")
@@ -24,18 +25,16 @@ public class MecanumDrive2026 extends OpMode {
     private boolean pullupFrontReversing = false;
     private ElapsedTime pullupFrontReverseTimer = new ElapsedTime();
 
-    // --- 自动前后移动（D-pad Down 触发）---
-    private boolean autoMoveRunning = false;
-    private int autoMoveStage = 0;                 // 0=未运行, 1=前进, 2=后退
-    private ElapsedTime autoMoveTimer = new ElapsedTime();
-    private boolean lastDpadDown = false;
-
     private DcMotor leftFrontMotor;
     private DcMotor rightFrontMotor;
     private DcMotor leftBackMotor;
     private DcMotor rightBackMotor;
-    private DcMotor shootMotorL;
+
+    // 左射球用 DcMotorEx 做恒速控制
+    private DcMotorEx shootMotorL;
+    // 右射球用普通 DcMotor，跟随左边功率
     private DcMotor shootMotorR;
+
     private DcMotor intake;
 
     private CRServo pullUp_back;
@@ -51,8 +50,6 @@ public class MecanumDrive2026 extends OpMode {
 
         shooterReversing = false;
         pullupFrontReversing = false;
-        autoMoveRunning = false;
-        autoMoveStage = 0;
 
         // --- Hardware ---
         leftFrontMotor = hardwareMap.get(DcMotor.class, "leftfront");
@@ -60,9 +57,12 @@ public class MecanumDrive2026 extends OpMode {
         leftBackMotor = hardwareMap.get(DcMotor.class, "leftback");
         rightBackMotor = hardwareMap.get(DcMotor.class, "rightback");
 
-        shootMotorL = hardwareMap.get(DcMotor.class, "shootL");
+        // 左射球：DcMotorEx，用 setVelocity
+        shootMotorL = hardwareMap.get(DcMotorEx.class, "shootL");
+        // 右射球：普通 DcMotor，用 setPower 跟随
         shootMotorR = hardwareMap.get(DcMotor.class, "shootR");
-        intake = hardwareMap.get(DcMotor.class, "intake");
+
+        intake      = hardwareMap.get(DcMotor.class, "intake");
 
         pullUp_back   = hardwareMap.get(CRServo.class, "pullup_back");
         pullUp_frontL = hardwareMap.get(CRServo.class, "pullup_frontL");
@@ -86,7 +86,13 @@ public class MecanumDrive2026 extends OpMode {
         leftBackMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         rightBackMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
 
-        // 你这里原本写的是 0.65，我保持不动
+        // --- 左射球使用编码器 + 速度模式 ---
+        shootMotorL.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        shootMotorL.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        // 右射球不用编码器控制，普通功率模式
+        shootMotorR.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+
+        // 初始全部停止
         shootMotorL.setPower(0);
         shootMotorR.setPower(0);
         intake.setPower(0);
@@ -98,7 +104,7 @@ public class MecanumDrive2026 extends OpMode {
 
     @Override
     public void loop() {
-        // -------- DRIVE 输入 --------
+        // -------- DRIVE --------
         double forward = -gamepad1.right_stick_y;
         double pan     =  gamepad1.right_stick_x;
         double rotate  =  gamepad1.left_stick_x;
@@ -118,54 +124,12 @@ public class MecanumDrive2026 extends OpMode {
             rb /= max;
         }
 
-        // -------- D-pad Down 自动前后移动 --------
-        boolean dpadDownPressed = gamepad1.dpad_down && !lastDpadDown;
-        lastDpadDown = gamepad1.dpad_down;
-
-        if (dpadDownPressed && !autoMoveRunning) {
-            autoMoveRunning = true;
-            autoMoveStage = 1;           // 从前进开始
-            autoMoveTimer.reset();
-        }
-
-        if (autoMoveRunning) {
-            double p = 0.4;              // 自动移动速度（可调）
-            double cmd = 0.0;
-
-            if (autoMoveStage == 1) {
-                // 阶段 1：前进 0.5 秒
-                if (autoMoveTimer.seconds() < 0.5) {
-                    cmd = p;
-                } else {
-                    autoMoveStage = 2;
-                    autoMoveTimer.reset();
-                    cmd = 0.0;           // 这个循环内先停一下
-                }
-            } else if (autoMoveStage == 2) {
-                // 阶段 2：后退 0.5 秒
-                if (autoMoveTimer.seconds() < 0.5) {
-                    cmd = -p;
-                } else {
-                    autoMoveRunning = false;
-                    autoMoveStage = 0;
-                    cmd = 0.0;           // 动作完成后停车
-                }
-            }
-
-            // 用 cmd 覆盖四个轮子的功率
-            lf = cmd;
-            rf = cmd;
-            lb = cmd;
-            rb = cmd;
-        }
-
-        // 最后统一把 lf/rf/lb/rb 写到电机
         leftFrontMotor.setPower(lf);
         rightFrontMotor.setPower(rf);
         leftBackMotor.setPower(lb);
         rightBackMotor.setPower(rb);
 
-        // -------- SHOOTER --------
+        // -------- SHOOTER（左恒速 + 预反转，右跟随） --------
         boolean shootPressed = gamepad1.right_bumper && !lastRightBumper;
         lastRightBumper = gamepad1.right_bumper;
 
@@ -174,30 +138,38 @@ public class MecanumDrive2026 extends OpMode {
             shootMotorStatus = !shootMotorStatus;
 
             if (!prev && shootMotorStatus) {
+                // 从关 -> 开：启动预反转阶段
                 shooterReversing = true;
                 shooterReverseTimer.reset();
             } else if (!shootMotorStatus) {
+                // 关掉
                 shooterReversing = false;
             }
         }
 
-        double shootPower = 0.55;
-        double shootReversePower = -0.25;
-        double shootReverseTime = 0.15;
+        // 左射球目标转速（tick/s），需要现场微调
+        double targetVelocity   = 1200;  // 正常发射转速
+        double reverseVelocity  = 1000;  // 预反转转速（绝对值）
+        double shootReverseTime = 0.15;  // 预反转持续时间（秒）
 
         if (shootMotorStatus) {
             if (shooterReversing && shooterReverseTimer.seconds() < shootReverseTime) {
-                shootMotorL.setPower(shootReversePower);
+                // 预反转阶段：左边反转
+                shootMotorL.setVelocity(-reverseVelocity);
             } else {
+                // 恒速正转阶段
                 shooterReversing = false;
-                shootMotorL.setPower(shootPower);
+                shootMotorL.setVelocity(targetVelocity);
             }
         } else {
             shooterReversing = false;
-            shootMotorL.setPower(0);
+            shootMotorL.setVelocity(0);
         }
 
-        shootMotorR.setPower(shootMotorL.getPower());
+        // 右射球：简单跟随左射球当前功率
+        // （左边内部用速度环调功率，这里拿出来让右边用）
+        double leftAppliedPower = shootMotorL.getPower();
+        shootMotorR.setPower(leftAppliedPower);
 
         // -------- INTAKE （现在：D-pad UP）--------
         boolean intakePressed = gamepad1.dpad_up && !lastIntakeButton;
@@ -217,6 +189,7 @@ public class MecanumDrive2026 extends OpMode {
             boolean prev = pullUpStatus;
             pullUpStatus = !pullUpStatus;
 
+            // 在 shooter 不转 且 pullUp 刚从关->开 时，前两个 CRServo 先反转一小会
             if (!prev && pullUpStatus && !shootMotorStatus) {
                 pullupFrontReversing = true;
                 pullupFrontReverseTimer.reset();
@@ -244,12 +217,16 @@ public class MecanumDrive2026 extends OpMode {
 
         // -------- TELEMETRY --------
         telemetry.addData("Shooter", shootMotorStatus ? "ON" : "OFF");
-        telemetry.addData("PullUp", pullUpStatus ? "ON" : "OFF");
-        telemetry.addData("Intake", IntakeMotorStatus ? "ON" : "OFF");
         telemetry.addData("Shooter Reversing", shooterReversing);
+        telemetry.addData("Shooter L vel", shootMotorL.getVelocity());
+        telemetry.addData("Shooter L power", shootMotorL.getPower());
+        telemetry.addData("Shooter R power", shootMotorR.getPower());
+
+        telemetry.addData("PullUp", pullUpStatus ? "ON" : "OFF");
         telemetry.addData("PullUp Front Reversing", pullupFrontReversing);
-        telemetry.addData("AutoMove Running", autoMoveRunning);
-        telemetry.addData("AutoMove Stage", autoMoveStage);
+
+        telemetry.addData("Intake", IntakeMotorStatus ? "ON" : "OFF");
         telemetry.update();
     }
+
 }
