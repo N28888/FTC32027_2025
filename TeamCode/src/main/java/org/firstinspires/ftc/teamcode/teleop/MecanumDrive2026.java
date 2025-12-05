@@ -272,7 +272,6 @@ public class MecanumDrive2026 extends OpMode {
         telemetry.addData("Shooter R power", shootMotorR.getPower());
 
         telemetry.addData("PullUp", pullUpStatus ? "ON" : "OFF");
-        telemetry.addData("PullUp Front Reversing", pullupFrontReversing);
 
         telemetry.addData("Intake", IntakeMotorStatus ? "ON" : "OFF");
 
