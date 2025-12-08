@@ -13,7 +13,7 @@ public class MecanumDrive2026 extends OpMode {
     boolean IntakeMotorStatus = false;
     boolean pullUpStatus = false;
 
-    private boolean lastIntakeButton = false;   // 现在：D-pad Up
+    private boolean lastIntakeButton = false;// 现在：D-pad Up
     private boolean lastPullUpButton = false;   // 现在：Left Bumper
     private boolean lastRightBumper = false;    // Shoot Motor（不变）
 
@@ -230,7 +230,7 @@ public class MecanumDrive2026 extends OpMode {
 
         intake.setPower(IntakeMotorStatus ? 1.0 : 0.0);
 
-        // -------- PULLUP （现在：LEFT BUMPER）--------
+        // -------- PULLUP （现在：LEFT BUMPER，前轮带“预反转”）--------
         boolean pullUpPressed = gamepad1.left_bumper && !lastPullUpButton;
         lastPullUpButton = gamepad1.left_bumper;
 
@@ -246,16 +246,16 @@ public class MecanumDrive2026 extends OpMode {
         }
 
         double pullPower = 0.7;
-        double frontReversePower = -0.7;
         double frontReverseTime = 0.15;
 
+        // 后面两个 & 中间：正常上拉
         pullUp_back.setPower(pullUpStatus ? pullPower : 0);
         pullUp_mid.setPower(pullUp_back.getPower());
 
+        // 前两个：可能先短暂反转，然后再跟随 back
         double frontOutput;
-
         if (pullupFrontReversing && pullupFrontReverseTimer.seconds() < frontReverseTime) {
-            frontOutput = frontReversePower;
+            frontOutput = -pullPower;  // 预反转
         } else {
             pullupFrontReversing = false;
             frontOutput = pullUp_back.getPower();
