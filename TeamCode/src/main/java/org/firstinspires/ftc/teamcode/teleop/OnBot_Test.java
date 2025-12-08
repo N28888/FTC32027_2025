@@ -127,7 +127,7 @@ public class OnBot_Test extends OpMode {
 
         if (max > 1.0) {
             lf /= max;
-            rf %= max;
+            rf /= max;
             lb /= max;
             rb /= max;
         }
