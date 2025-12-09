@@ -94,15 +94,17 @@ public class Auto_Test extends LinearOpMode {
         //                  AUTO SEQUENCE
         // =================================================
 
-        // 1️⃣ 前进 1 秒
-        driveStraight(1.0, 1000);
-        sleep(150);
+        // 1️⃣ 后退 1 秒
+        driveStraight(-1.0, 1000);
+        sleep(500);
 
         // 2️⃣ 启动射球
         startShooterWithPreReverse();
-        sleep(500);   // 等枪口转速稳定
+        sleep(3000);   // 等枪口转速稳定
 
         // 3️⃣ 拉球 / 上球
+        runPullUpWithFrontReverse(1200);
+        sleep(500);
         runPullUpWithFrontReverse(1200);
 
         // 4️⃣ 停止全部
