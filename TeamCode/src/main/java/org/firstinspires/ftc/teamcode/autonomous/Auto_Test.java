@@ -95,8 +95,7 @@ public class Auto_Test extends LinearOpMode {
         // =================================================
 
         // 1️⃣ 后退 1 秒
-        driveStraight(-1.0, 720);
-        driveStraight(-0.1,500);
+        driveStraight(-1.0, 850);
         sleep(500);
 
         // 2️⃣ 启动射球
@@ -104,11 +103,9 @@ public class Auto_Test extends LinearOpMode {
         sleep(3000);   // 等枪口转速稳定
 
         // 3️⃣ 拉球 / 上球
-        runPullUpWithFrontReverse(1200);
-        sleep(600);
-        pausePullUp(6000);
-        runPullUpWithFrontReverse(1200);
-        sleep(600);
+        runPullUp(550);
+        pausePullUp(2000);
+        runPullUp(600);
 
         // 4️⃣ 停止全部
         stopShooter();
@@ -179,21 +176,12 @@ public class Auto_Test extends LinearOpMode {
 
 
 
-    private void runPullUpWithFrontReverse(long totalTimeMs) {
+    private void runPullUp(long totalTimeMs) {
 
         double pullPower = 0.7;
-        double reversePower = -0.7;
-        long reverseTimeMs = 150;
-
-        pullUp_frontL.setPower(reversePower);
-        pullUp_frontR.setPower(reversePower);
-        sleep(reverseTimeMs);
-
-        // 全部正转拉球
         setPullUpPower(pullPower);
+        sleep(totalTimeMs);
+        setPullUpPower(0);
 
-        long remain = totalTimeMs - reverseTimeMs;
-        if (remain > 0)
-            sleep(remain);
     }
 }
