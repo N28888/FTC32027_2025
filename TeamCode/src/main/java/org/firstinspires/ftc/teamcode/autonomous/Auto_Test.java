@@ -94,16 +94,18 @@ public class Auto_Test extends LinearOpMode {
         //                  AUTO SEQUENCE
         // =================================================
 
-        // 1️⃣ 前进 1 秒
-        driveStraight(1.0, 1000);
-        sleep(150);
+        // 1️⃣ 后退 1 秒
+        driveStraight(-1.0, 850);
+        sleep(500);
 
         // 2️⃣ 启动射球
         startShooterWithPreReverse();
-        sleep(500);   // 等枪口转速稳定
+        sleep(3000);   // 等枪口转速稳定
 
         // 3️⃣ 拉球 / 上球
-        runPullUpWithFrontReverse(1200);
+        runPullUp(550);
+        pausePullUp(2000);
+        runPullUp(600);
 
         // 4️⃣ 停止全部
         stopShooter();
@@ -135,7 +137,7 @@ public class Auto_Test extends LinearOpMode {
 
     private void startShooterWithPreReverse() {
 
-        double targetVelocity  = 1200;
+        double targetVelocity  = 1000;
         double reverseVelocity = 1000;
         long   reverseTimeMs  = 150;
 
@@ -166,28 +168,20 @@ public class Auto_Test extends LinearOpMode {
         pullUp_frontR.setPower(p);
     }
 
-    /**
-     * 模拟 TeleOp 的“前轮预反转 → 正转供球”动作
-     */
-    private void runPullUpWithFrontReverse(long totalTimeMs) {
+    private void pausePullUp(long pauseTimeMs){
+        double PausePower = 0;
+        sleep(pauseTimeMs);
+        setPullUpPower(PausePower);
+    }
+
+
+
+    private void runPullUp(long totalTimeMs) {
 
         double pullPower = 0.7;
-        double reversePower = -0.7;
-        long reverseTimeMs = 150;
-
-        // 前轮反转
-        pullUp_frontL.setPower(reversePower);
-        pullUp_frontR.setPower(reversePower);
-        pullUp_back.setPower(pullPower);
-        pullUp_mid.setPower(pullPower);
-
-        sleep(reverseTimeMs);
-
-        // 全部正转拉球
         setPullUpPower(pullPower);
+        sleep(totalTimeMs);
+        setPullUpPower(0);
 
-        long remain = totalTimeMs - reverseTimeMs;
-        if (remain > 0)
-            sleep(remain);
     }
 }
