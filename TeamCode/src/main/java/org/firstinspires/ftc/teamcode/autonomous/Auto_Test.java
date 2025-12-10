@@ -95,7 +95,8 @@ public class Auto_Test extends LinearOpMode {
         // =================================================
 
         // 1️⃣ 后退 1 秒
-        driveStraight(-1.0, 1000);
+        driveStraight(-1.0, 720);
+        driveStraight(-0.1,500);
         sleep(500);
 
         // 2️⃣ 启动射球
@@ -104,8 +105,10 @@ public class Auto_Test extends LinearOpMode {
 
         // 3️⃣ 拉球 / 上球
         runPullUpWithFrontReverse(1200);
-        sleep(500);
+        sleep(600);
+        pausePullUp(6000);
         runPullUpWithFrontReverse(1200);
+        sleep(600);
 
         // 4️⃣ 停止全部
         stopShooter();
@@ -137,7 +140,7 @@ public class Auto_Test extends LinearOpMode {
 
     private void startShooterWithPreReverse() {
 
-        double targetVelocity  = 1200;
+        double targetVelocity  = 1000;
         double reverseVelocity = 1000;
         long   reverseTimeMs  = 150;
 
@@ -168,21 +171,22 @@ public class Auto_Test extends LinearOpMode {
         pullUp_frontR.setPower(p);
     }
 
-    /**
-     * 模拟 TeleOp 的“前轮预反转 → 正转供球”动作
-     */
+    private void pausePullUp(long pauseTimeMs){
+        double PausePower = 0;
+        sleep(pauseTimeMs);
+        setPullUpPower(PausePower);
+    }
+
+
+
     private void runPullUpWithFrontReverse(long totalTimeMs) {
 
         double pullPower = 0.7;
         double reversePower = -0.7;
         long reverseTimeMs = 150;
 
-        // 前轮反转
         pullUp_frontL.setPower(reversePower);
         pullUp_frontR.setPower(reversePower);
-        pullUp_back.setPower(pullPower);
-        pullUp_mid.setPower(pullPower);
-
         sleep(reverseTimeMs);
 
         // 全部正转拉球
