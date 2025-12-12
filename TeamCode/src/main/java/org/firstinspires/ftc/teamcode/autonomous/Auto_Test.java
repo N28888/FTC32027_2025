@@ -85,7 +85,7 @@ public class Auto_Test extends LinearOpMode {
         if (isStopRequested()) return;
 
         // Move back
-        driveStraight(-1.0, 850);
+        driveStraight(-1, 850);
         sleep(500);
 
         // shootMotor start
@@ -94,14 +94,19 @@ public class Auto_Test extends LinearOpMode {
         sleep(3000);
 
         // PullUp start
-        runPullUp(550);
+        runPullUp(580);
         pausePullUp(2000);
         runPullUp(600);
 
         inertialPullUp();
-        adjustDirection(0.2,150);
+        adjustDirectionL(0.2,200);
+        sleep(500);
 
         runPullUp(600);
+
+        adjustDirectionR(0.3,1000);
+        sleep(500);
+        driveStraight(-1,500);
 
         // Stop all
         stopShooter();
@@ -129,7 +134,7 @@ public class Auto_Test extends LinearOpMode {
 
     private void startShooterWithPreReverse() {
 
-        double targetVelocity = 1100;
+        double targetVelocity = 1000;
         double reverseVelocity = 1000;
         long reverseTimeMs = 150;
 
@@ -195,7 +200,7 @@ public class Auto_Test extends LinearOpMode {
         pullUp_mid.setPower(0);
     }
 
-    private void adjustDirection(double adjustPower, long TimeMs){
+    private void adjustDirectionL(double adjustPower, long TimeMs){
 
         leftFront.setPower(-adjustPower);
         leftBack.setPower(-adjustPower);
@@ -204,5 +209,16 @@ public class Auto_Test extends LinearOpMode {
         sleep(TimeMs);
         setDrivePower(0);
     }
+
+    private void adjustDirectionR(double adjustPower, long TimeMs){
+
+        leftFront.setPower(adjustPower);
+        leftBack.setPower(adjustPower);
+        rightFront.setPower(-adjustPower);
+        rightBack.setPower(-adjustPower);
+        sleep(TimeMs);
+        setDrivePower(0);
+    }
+
 
 }
