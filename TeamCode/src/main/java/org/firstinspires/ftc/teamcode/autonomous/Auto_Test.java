@@ -10,17 +10,17 @@ import com.qualcomm.robotcore.hardware.DcMotorSimple;
 @Autonomous(name = "Auto_Test", group = "Auto1")
 public class Auto_Test extends LinearOpMode {
 
-    // --------- Drive ---------
+    // Drive
     private DcMotor leftFront, rightFront, leftBack, rightBack;
 
-    // --------- Shooter ---------
+    // Shooter
     private DcMotorEx shootMotorL;
     private DcMotor shootMotorR;
 
-    // --------- Intake ---------
+    // Intake
     private DcMotor intake;
 
-    // --------- PullUp CRServos (4) ---------
+    // PullUp CRServo
     private CRServo pullUp_back;
     private CRServo pullUp_mid;
     private CRServo pullUp_frontL;
@@ -29,7 +29,6 @@ public class Auto_Test extends LinearOpMode {
     @Override
     public void runOpMode() {
 
-        // ================== 硬件映射 ==================
         leftFront  = hardwareMap.get(DcMotor.class, "leftfront");
         rightFront = hardwareMap.get(DcMotor.class, "rightfront");
         leftBack   = hardwareMap.get(DcMotor.class, "leftback");
@@ -45,8 +44,6 @@ public class Auto_Test extends LinearOpMode {
         pullUp_frontL = hardwareMap.get(CRServo.class, "pullup_frontL");
         pullUp_frontR = hardwareMap.get(CRServo.class, "pullup_frontR");
 
-
-        // ================== 方向：完全对齐 TeleOp ==================
         leftFront.setDirection(DcMotorSimple.Direction.REVERSE);
         leftBack.setDirection(DcMotorSimple.Direction.REVERSE);
         rightFront.setDirection(DcMotorSimple.Direction.FORWARD);
@@ -59,20 +56,17 @@ public class Auto_Test extends LinearOpMode {
         pullUp_frontR.setDirection(CRServo.Direction.REVERSE);
 
 
-        // ================== Brake ==================
         leftFront.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         rightFront.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         leftBack.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         rightBack.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
 
 
-        // ================== Shooter 模式 ==================
         shootMotorL.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
         shootMotorL.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
         shootMotorR.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
 
-
-        // ================== 初始全部停止 ==================
+        // --------------------------
         setDrivePower(0);
 
         shootMotorL.setVelocity(0);
@@ -90,33 +84,38 @@ public class Auto_Test extends LinearOpMode {
         waitForStart();
         if (isStopRequested()) return;
 
-        // =================================================
-        //                  AUTO SEQUENCE
-        // =================================================
-
-        // 1️⃣ 后退 1 秒
-        driveStraight(-1.0, 850);
+        // Move back
+        driveStraight(-1, 850);
         sleep(500);
 
-        // 2️⃣ 启动射球
+        // shootMotor start
         startShooterWithPreReverse();
-        sleep(3000);   // 等枪口转速稳定
+        intake.setPower(1);
+        sleep(3000);
 
-        // 3️⃣ 拉球 / 上球
-        runPullUp(550);
+        // PullUp start
+        runPullUp(580);
         pausePullUp(2000);
         runPullUp(600);
 
-        // 4️⃣ 停止全部
+        inertialPullUp();
+        adjustDirectionL(0.2,200);
+        sleep(500);
+
+        runPullUp(600);
+
+        adjustDirectionR(0.3,1000);
+        sleep(500);
+        driveStraight(-1,500);
+
+        // Stop all
         stopShooter();
         setPullUpPower(0);
         intake.setPower(0);
         setDrivePower(0);
     }
 
-    // =================================================
-    //                      DRIVE
-    // =================================================
+    // Mecanum Drive
 
     private void setDrivePower(double p) {
         leftFront.setPower(p);
@@ -131,24 +130,18 @@ public class Auto_Test extends LinearOpMode {
         setDrivePower(0);
     }
 
-    // =================================================
-    //                      SHOOTER
-    // =================================================
+    // Shooter
 
     private void startShooterWithPreReverse() {
 
-        double targetVelocity  = 1000;
+        double targetVelocity = 1000;
         double reverseVelocity = 1000;
-        long   reverseTimeMs  = 150;
+        long reverseTimeMs = 150;
 
-        // 预反转
         shootMotorL.setVelocity(-reverseVelocity);
         sleep(reverseTimeMs);
 
-        // 恒速正转
         shootMotorL.setVelocity(targetVelocity);
-
-        // 右边跟随
         shootMotorR.setPower(shootMotorL.getPower());
     }
 
@@ -157,9 +150,7 @@ public class Auto_Test extends LinearOpMode {
         shootMotorR.setPower(0);
     }
 
-    // =================================================
-    //                      PULL UP
-    // =================================================
+    // PullUp CRServos
 
     private void setPullUpPower(double p) {
         pullUp_back.setPower(p);
@@ -168,12 +159,11 @@ public class Auto_Test extends LinearOpMode {
         pullUp_frontR.setPower(p);
     }
 
-    private void pausePullUp(long pauseTimeMs){
+    private void pausePullUp(long pauseTimeMs) {
         double PausePower = 0;
         sleep(pauseTimeMs);
         setPullUpPower(PausePower);
     }
-
 
 
     private void runPullUp(long totalTimeMs) {
@@ -184,4 +174,51 @@ public class Auto_Test extends LinearOpMode {
         setPullUpPower(0);
 
     }
+
+    private void autoMoveForwardBack() {
+        double p = 1.0;
+        long durationMs = 500;
+
+        // Move Forward
+        setDrivePower(p);
+        sleep(durationMs);
+
+        // Move Backward
+        setDrivePower(-p);
+        sleep(durationMs+200);
+
+        // Stop
+        setDrivePower(0);
+    }
+
+    private void inertialPullUp(){
+        double inertiaPower = 0.7;
+        pullUp_back.setPower(inertiaPower);
+        pullUp_mid.setPower(inertiaPower);
+        autoMoveForwardBack();
+        pullUp_back.setPower(0);
+        pullUp_mid.setPower(0);
+    }
+
+    private void adjustDirectionL(double adjustPower, long TimeMs){
+
+        leftFront.setPower(-adjustPower);
+        leftBack.setPower(-adjustPower);
+        rightFront.setPower(adjustPower);
+        rightBack.setPower(adjustPower);
+        sleep(TimeMs);
+        setDrivePower(0);
+    }
+
+    private void adjustDirectionR(double adjustPower, long TimeMs){
+
+        leftFront.setPower(adjustPower);
+        leftBack.setPower(adjustPower);
+        rightFront.setPower(-adjustPower);
+        rightBack.setPower(-adjustPower);
+        sleep(TimeMs);
+        setDrivePower(0);
+    }
+
+
 }
