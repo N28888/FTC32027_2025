@@ -138,12 +138,12 @@ public class MecanumDrive2026 extends OpMode {
 
         if (dpadDownPressed && !autoMoveRunning) {
             autoMoveRunning = true;
-            autoMoveStage = 1;           // 从前进开始
+            autoMoveStage = 1;
             autoMoveTimer.reset();
         }
 
         if (autoMoveRunning) {
-            double p = 1;              // 自动移动速度（可调）
+            double p = 1;
             double cmd = 0.0;
 
             if (autoMoveStage == 1) {
@@ -153,16 +153,15 @@ public class MecanumDrive2026 extends OpMode {
                 } else {
                     autoMoveStage = 2;
                     autoMoveTimer.reset();
-                    cmd = 0.0;           // 这一帧先停一下
+                    cmd = 0.0;
                 }
             } else if (autoMoveStage == 2) {
-                // 阶段 2：后退 0.5 秒
                 if (autoMoveTimer.seconds() < 0.5) {
                     cmd = -p;
                 } else {
                     autoMoveRunning = false;
                     autoMoveStage = 0;
-                    cmd = 0.0;           // 动作完成后停车
+                    cmd = 0.0;
                 }
             }
 
@@ -173,13 +172,13 @@ public class MecanumDrive2026 extends OpMode {
             rb = cmd;
         }
 
-        // 最终把底盘功率写到电机
+
         leftFrontMotor.setPower(lf);
         rightFrontMotor.setPower(rf);
         leftBackMotor.setPower(lb);
         rightBackMotor.setPower(rb);
 
-        // -------- SHOOTER（左恒速 + 预反转，右跟随） --------
+        // -------- SHOOTER --------
         boolean shootPressed = gamepad1.right_bumper && !lastRightBumper;
         lastRightBumper = gamepad1.right_bumper;
 
@@ -197,9 +196,9 @@ public class MecanumDrive2026 extends OpMode {
             }
         }
 
-        // 左射球目标转速（tick/s），需要现场微调
+        // 左射球目标转速
         double targetVelocity   = 1000;  // 正常发射转速
-        double reverseVelocity  = 1000;  // 预反转转速（绝对值）
+        double reverseVelocity  = 1000;  // 预反转转速
         double shootReverseTime = 0.15;  // 预反转持续时间（秒）
 
         if (shootMotorStatus) {
@@ -216,7 +215,6 @@ public class MecanumDrive2026 extends OpMode {
             shootMotorL.setVelocity(0);
         }
 
-        // 右射球：简单跟随左射球当前功率
         double leftAppliedPower = shootMotorL.getPower();
         shootMotorR.setPower(leftAppliedPower);
 
