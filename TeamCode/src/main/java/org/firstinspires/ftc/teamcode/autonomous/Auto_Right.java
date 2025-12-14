@@ -134,7 +134,7 @@ public class Auto_Right extends LinearOpMode {
 
     private void startShooterWithPreReverse() {
 
-        double targetVelocity = 1000;
+        double targetVelocity = 1050;
         double reverseVelocity = 1000;
         long reverseTimeMs = 150;
 
