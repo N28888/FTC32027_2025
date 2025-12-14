@@ -198,7 +198,7 @@ public class OnBot_Test extends OpMode {
         }
 
         // 左射球目标转速（tick/s），需要现场微调
-        double targetVelocity   = 1000;  // 正常发射转速
+        double targetVelocity   = 1050;  // 正常发射转速
         double reverseVelocity  = 1000;  // 预反转转速（绝对值）
         double shootReverseTime = 0.15;  // 预反转持续时间（秒）
 

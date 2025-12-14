@@ -104,7 +104,7 @@ public class Auto_Test extends LinearOpMode {
 
         runPullUp(600);
 
-        adjustDirectionR(0.3,1000);
+        adjustDirectionR(0.3,1050);
         sleep(500);
         driveStraight(-1,500);
 
