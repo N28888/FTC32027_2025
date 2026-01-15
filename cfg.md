@@ -15,6 +15,7 @@
 ### I2C
 
 ```
+0: IMU (imu)
 1: Huskeylens (cam)
 ```
 
@@ -34,7 +35,14 @@
 ```
 
 
-
+# AprilTag Number
+```
+ID1: blue goal
+ID2: red goal
+ID3: PPG
+ID4: PGP
+ID5: GPP
+```
 
 
 # Game Controller Config
