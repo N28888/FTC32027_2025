@@ -6,8 +6,6 @@ import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.IMU;
 
-import org.firstinspires.ftc.vision.VisionPortal;
-
 @TeleOp(name = "TestLinearOp", group = "TeleOp2")
 public class TestLinearOp extends LinearOpMode {
 
@@ -19,8 +17,6 @@ public class TestLinearOp extends LinearOpMode {
 
     private HuskyLens lens;
     private IMU imu;
-
-    private VisionPortal visionPortal;
 
     @Override
     public void runOpMode() {
