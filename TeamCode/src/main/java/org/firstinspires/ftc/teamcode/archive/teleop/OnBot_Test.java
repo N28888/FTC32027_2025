@@ -11,17 +11,17 @@ import com.qualcomm.robotcore.util.ElapsedTime;
 public class OnBot_Test extends OpMode {
     boolean shootMotorStatus = false;
     boolean IntakeMotorStatus = false;
-    boolean pullUpStatus = false;
+    boolean pullUpStatus = false; // 现在只代表 front pullup 状态（LB）
 
-    private boolean lastIntakeButton = false;// 现在：D-pad Up
-    private boolean lastPullUpButton = false;   // 现在：Left Bumper
-    private boolean lastRightBumper = false;    // Shoot Motor（不变）
+    private boolean lastIntakeButton = false;    // D-pad Up
+    private boolean lastPullUpButton = false;    // Left Bumper（front pullup）
+    private boolean lastRightBumper = false;     // Shoot Motor
 
     // --- 射球电机“预反转” ---
     private boolean shooterReversing = false;
     private ElapsedTime shooterReverseTimer = new ElapsedTime();
 
-    // --- PullUp 前轮“预反转” ---
+    // --- Front PullUp “预反转” ---
     private boolean pullupFrontReversing = false;
     private ElapsedTime pullupFrontReverseTimer = new ElapsedTime();
 
@@ -70,12 +70,12 @@ public class OnBot_Test extends OpMode {
         // 右射球：普通 DcMotor，用 setPower 跟随
         shootMotorR = hardwareMap.get(DcMotor.class, "shootR");
 
-        intake      = hardwareMap.get(DcMotor.class, "intake");
+        intake = hardwareMap.get(DcMotor.class, "intake");
 
-        pullUp_back   = hardwareMap.get(CRServo.class, "pullup_back");
+        pullUp_back = hardwareMap.get(CRServo.class, "pullup_back");
         pullUp_frontL = hardwareMap.get(CRServo.class, "pullup_frontL");
         pullUp_frontR = hardwareMap.get(CRServo.class, "pullup_frontR");
-        pullUp_mid    = hardwareMap.get(CRServo.class, "pullup_mid");
+        pullUp_mid = hardwareMap.get(CRServo.class, "pullup_mid");
 
         // --- Directions ---
         leftFrontMotor.setDirection(DcMotor.Direction.REVERSE);
@@ -104,6 +104,7 @@ public class OnBot_Test extends OpMode {
         shootMotorL.setPower(0);
         shootMotorR.setPower(0);
         intake.setPower(0);
+
         pullUp_back.setPower(0);
         pullUp_frontL.setPower(0);
         pullUp_frontR.setPower(0);
@@ -114,8 +115,8 @@ public class OnBot_Test extends OpMode {
     public void loop() {
         // -------- DRIVE 输入 --------
         double forward = -gamepad1.right_stick_y;
-        double pan     =  gamepad1.right_stick_x;
-        double rotate  =  gamepad1.left_stick_x;
+        double pan = gamepad1.right_stick_x;
+        double rotate = gamepad1.left_stick_x;
 
         double lf = forward + pan + rotate;
         double rf = forward - pan - rotate;
@@ -198,9 +199,9 @@ public class OnBot_Test extends OpMode {
         }
 
         // 左射球目标转速（tick/s），需要现场微调
-        double targetVelocity   = 1050;  // 正常发射转速
-        double reverseVelocity  = 1000;  // 预反转转速（绝对值）
-        double shootReverseTime = 0.15;  // 预反转持续时间（秒）
+        double targetVelocity = 1050;  // 正常发射转速
+        double reverseVelocity = 1000; // 预反转转速（绝对值）
+        double shootReverseTime = 0.15; // 预反转持续时间（秒）
 
         if (shootMotorStatus) {
             if (shooterReversing && shooterReverseTimer.seconds() < shootReverseTime) {
@@ -220,7 +221,7 @@ public class OnBot_Test extends OpMode {
         double leftAppliedPower = shootMotorL.getPower();
         shootMotorR.setPower(leftAppliedPower);
 
-        // -------- INTAKE （现在：D-pad UP）--------
+        // -------- INTAKE （D-pad UP）+ back/mid pullup 跟随 --------
         boolean intakePressed = gamepad1.dpad_up && !lastIntakeButton;
         lastIntakeButton = gamepad1.dpad_up;
 
@@ -228,9 +229,15 @@ public class OnBot_Test extends OpMode {
             IntakeMotorStatus = !IntakeMotorStatus;
         }
 
+        // intake 电机
         intake.setPower(IntakeMotorStatus ? 1.0 : 0.0);
 
-        // -------- PULLUP （现在：LEFT BUMPER，前轮带“预反转”）--------
+        // back/mid pullup 跟随 intake
+        double pullPowerBackMid = 0.7;
+        pullUp_back.setPower(IntakeMotorStatus ? pullPowerBackMid : 0.0);
+        pullUp_mid.setPower(pullUp_back.getPower());
+
+        // -------- FRONT PULLUP（LEFT BUMPER，只控制 front 两个）--------
         boolean pullUpPressed = gamepad1.left_bumper && !lastPullUpButton;
         lastPullUpButton = gamepad1.left_bumper;
 
@@ -238,27 +245,33 @@ public class OnBot_Test extends OpMode {
             boolean prev = pullUpStatus;
             pullUpStatus = !pullUpStatus;
 
-            // 在 shooter 不转 且 pullUp 刚从关->开 时，前两个 CRServo 先反转一小会
+            // front 刚从关->开 且 shooter 不转：front 先预反转
             if (!prev && pullUpStatus && !shootMotorStatus) {
                 pullupFrontReversing = true;
                 pullupFrontReverseTimer.reset();
             }
+
+            // 如果关掉，停止预反转状态
+            if (!pullUpStatus) {
+                pullupFrontReversing = false;
+            }
         }
 
-        double pullPower = 0.7;
+        double pullPowerFront = 0.7;
         double frontReverseTime = 0.15;
 
-        // 后面两个 & 中间：正常上拉
-        pullUp_back.setPower(pullUpStatus ? pullPower : 0);
-        pullUp_mid.setPower(pullUp_back.getPower());
-
-        // 前两个：可能先短暂反转，然后再跟随 back
+        // front 两个：可能先短暂反转，然后再正常转
         double frontOutput;
-        if (pullupFrontReversing && pullupFrontReverseTimer.seconds() < frontReverseTime) {
-            frontOutput = -pullPower;  // 预反转
+        if (pullUpStatus) {
+            if (pullupFrontReversing && pullupFrontReverseTimer.seconds() < frontReverseTime) {
+                frontOutput = -pullPowerFront;
+            } else {
+                pullupFrontReversing = false;
+                frontOutput = pullPowerFront;
+            }
         } else {
             pullupFrontReversing = false;
-            frontOutput = pullUp_back.getPower();
+            frontOutput = 0.0;
         }
 
         pullUp_frontL.setPower(frontOutput);
@@ -271,15 +284,15 @@ public class OnBot_Test extends OpMode {
         telemetry.addData("Shooter L power", shootMotorL.getPower());
         telemetry.addData("Shooter R power", shootMotorR.getPower());
 
-        telemetry.addData("PullUp", pullUpStatus ? "ON" : "OFF");
+        telemetry.addData("Front PullUp (LB)", pullUpStatus ? "ON" : "OFF");
         telemetry.addData("PullUp Front Reversing", pullupFrontReversing);
 
         telemetry.addData("Intake", IntakeMotorStatus ? "ON" : "OFF");
+        telemetry.addData("Back/Mid PullUp (Intake)", IntakeMotorStatus ? "ON" : "OFF");
 
         telemetry.addData("AutoMove Running", autoMoveRunning);
         telemetry.addData("AutoMove Stage", autoMoveStage);
 
         telemetry.update();
     }
-
 }
