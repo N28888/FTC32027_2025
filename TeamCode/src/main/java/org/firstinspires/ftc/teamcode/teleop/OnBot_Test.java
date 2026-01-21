@@ -1,4 +1,4 @@
-package org.firstinspires.ftc.teamcode.teleop;
+package org.firstinspires.ftc.teamcode.archive.teleop;
 
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
@@ -11,17 +11,15 @@ import com.qualcomm.robotcore.util.ElapsedTime;
 public class OnBot_Test extends OpMode {
     boolean shootMotorStatus = false;
     boolean IntakeMotorStatus = false;
-    boolean pullUpStatus = false; // 现在只代表 front pullup 状态（LB）
 
     private boolean lastIntakeButton = false;    // D-pad Up
-    private boolean lastPullUpButton = false;    // Left Bumper（front pullup）
     private boolean lastRightBumper = false;     // Shoot Motor
 
     // --- 射球电机“预反转” ---
     private boolean shooterReversing = false;
     private ElapsedTime shooterReverseTimer = new ElapsedTime();
 
-    // --- Front PullUp “预反转” ---
+    // --- Front PullUp “预反转”（按住 LB 时生效） ---
     private boolean pullupFrontReversing = false;
     private ElapsedTime pullupFrontReverseTimer = new ElapsedTime();
 
@@ -52,7 +50,6 @@ public class OnBot_Test extends OpMode {
     public void init() {
         shootMotorStatus = false;
         IntakeMotorStatus = false;
-        pullUpStatus = false;
 
         shooterReversing = false;
         pullupFrontReversing = false;
@@ -199,8 +196,8 @@ public class OnBot_Test extends OpMode {
         }
 
         // 左射球目标转速（tick/s），需要现场微调
-        double targetVelocity = 1050;  // 正常发射转速
-        double reverseVelocity = 1000; // 预反转转速（绝对值）
+        double targetVelocity = 1050;   // 正常发射转速
+        double reverseVelocity = 1000;  // 预反转转速（绝对值）
         double shootReverseTime = 0.15; // 预反转持续时间（秒）
 
         if (shootMotorStatus) {
@@ -237,32 +234,25 @@ public class OnBot_Test extends OpMode {
         pullUp_back.setPower(IntakeMotorStatus ? pullPowerBackMid : 0.0);
         pullUp_mid.setPower(pullUp_back.getPower());
 
-        // -------- FRONT PULLUP（LEFT BUMPER，只控制 front 两个）--------
-        boolean pullUpPressed = gamepad1.left_bumper && !lastPullUpButton;
-        lastPullUpButton = gamepad1.left_bumper;
-
-        if (pullUpPressed) {
-            boolean prev = pullUpStatus;
-            pullUpStatus = !pullUpStatus;
-
-            // front 刚从关->开 且 shooter 不转：front 先预反转
-            if (!prev && pullUpStatus && !shootMotorStatus) {
-                pullupFrontReversing = true;
-                pullupFrontReverseTimer.reset();
-            }
-
-            // 如果关掉，停止预反转状态
-            if (!pullUpStatus) {
-                pullupFrontReversing = false;
-            }
-        }
+        // -------- FRONT PULLUP（LEFT BUMPER：按住才转，松开就停）--------
+        boolean lbHeld = gamepad1.left_bumper;
 
         double pullPowerFront = 0.7;
         double frontReverseTime = 0.15;
 
-        // front 两个：可能先短暂反转，然后再正常转
+        // 如果想保留“shooter不转时，front先短暂反转一下再正转”
+        if (lbHeld && !shootMotorStatus) {
+            if (!pullupFrontReversing) {   // 刚开始按住
+                pullupFrontReversing = true;
+                pullupFrontReverseTimer.reset();
+            }
+        } else {
+            // 松开 or shooter在转 -> 不做预反转
+            pullupFrontReversing = false;
+        }
+
         double frontOutput;
-        if (pullUpStatus) {
+        if (lbHeld) {
             if (pullupFrontReversing && pullupFrontReverseTimer.seconds() < frontReverseTime) {
                 frontOutput = -pullPowerFront;
             } else {
@@ -270,7 +260,6 @@ public class OnBot_Test extends OpMode {
                 frontOutput = pullPowerFront;
             }
         } else {
-            pullupFrontReversing = false;
             frontOutput = 0.0;
         }
 
@@ -284,7 +273,7 @@ public class OnBot_Test extends OpMode {
         telemetry.addData("Shooter L power", shootMotorL.getPower());
         telemetry.addData("Shooter R power", shootMotorR.getPower());
 
-        telemetry.addData("Front PullUp (LB)", pullUpStatus ? "ON" : "OFF");
+        telemetry.addData("Front PullUp (LB)", lbHeld ? "HELD" : "RELEASED");
         telemetry.addData("PullUp Front Reversing", pullupFrontReversing);
 
         telemetry.addData("Intake", IntakeMotorStatus ? "ON" : "OFF");
