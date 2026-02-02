@@ -367,20 +367,20 @@ public class OnBot_Test extends OpMode {
         if (shootMotorStatus) {
             if (shooterReversing && shooterReverseTimer.seconds() < shootReverseTime) {
                 shootMotorL.setVelocity(-reverseVelocity);
+                shootMotorR.setVelocity(-reverseVelocity);
                 shooterInReversePhase = true;
             } else {
                 shooterReversing = false;
                 shootMotorL.setVelocity(targetVelocity);
+                shootMotorR.setVelocity(targetVelocity);
                 shooterInReversePhase = false;
             }
         } else {
             shooterReversing = false;
             shootMotorL.setVelocity(0);
+            shootMotorR.setVelocity(0);
             shooterInReversePhase = false;
         }
-
-        // 右射球跟随左射球速度
-        shootMotorR.setVelocity(shootMotorL.getVelocity());
 
         // =========================
         // INTAKE（D-pad UP）+ back/mid pullup 跟随
@@ -393,8 +393,6 @@ public class OnBot_Test extends OpMode {
         intake.setPower(IntakeMotorStatus ? 1.0 : 0.0);
 
         double pullPowerBackMid = 0.7;
-        pullUp_back.setPower(IntakeMotorStatus ? pullPowerBackMid : 0.0);
-        pullUp_mid.setPower(pullUp_back.getPower());
 
         // =========================
         // FRONT PULLUP（LB）
@@ -427,6 +425,14 @@ public class OnBot_Test extends OpMode {
 
         pullUp_frontL.setPower(frontOutput);
         pullUp_frontR.setPower(frontOutput);
+        if ((shootMotorStatus == true && pullUp_frontL.getPower() > 0)){
+            pullUp_mid.setPower(0.3);
+            pullUp_back.setPower(0.3);
+        }
+        else {
+            pullUp_back.setPower(IntakeMotorStatus ? pullPowerBackMid : 0.0);
+            pullUp_mid.setPower(pullUp_back.getPower());
+        }
 
         // =========================
         // TELEMETRY
