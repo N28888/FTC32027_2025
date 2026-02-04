@@ -435,7 +435,7 @@ public class JYF_RED extends OpMode {
         }
         else {
             pullUp_back.setPower(IntakeMotorStatus ? pullPowerBackMid : 0.0);
-            pullUp_mid.setPower(pullUp_back.getPower());
+            pullUp_mid.setPower(0);
         }
 
         // =========================
