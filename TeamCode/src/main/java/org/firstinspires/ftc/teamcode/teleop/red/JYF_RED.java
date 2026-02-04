@@ -30,6 +30,7 @@ public class JYF_RED extends OpMode {
     private Servo statusLed = null;
     private double LED_RED_POS   = 0.28;
     private double LED_GREEN_POS = 0.49;
+    private double LED_BLUE_POS = 0.611;
 
     // ---------------- 状态 ----------------
     boolean shootMotorStatus = false;
@@ -205,6 +206,9 @@ public class JYF_RED extends OpMode {
 
     @Override
     public void loop() {
+        if (shootMotorL.getPower() == 0){
+            statusLed.setPosition(LED_RED_POS);
+        }
         // =========================
         // 更新 HuskyLens 状态
         // =========================
@@ -214,7 +218,7 @@ public class JYF_RED extends OpMode {
         // LED：稳定对正才绿
         // =========================
         boolean alignedStable = alignedFrames >= alignedNeedFrames;
-        statusLed.setPosition(alignedStable ? LED_GREEN_POS : LED_RED_POS);
+        statusLed.setPosition(alignedStable ? LED_GREEN_POS : LED_BLUE_POS);
 
         // =========================
         // DRIVE 输入
