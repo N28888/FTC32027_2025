@@ -1,4 +1,4 @@
-package org.firstinspires.ftc.teamcode.teleop;
+package org.firstinspires.ftc.teamcode.teleop.red;
 
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
@@ -14,8 +14,8 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.List;
 
-@TeleOp(name = "OnBot_Test", group = "TeleOp2")
-public class OnBot_Test extends OpMode {
+@TeleOp(name = "JYF_RED", group = "TeleOp3")
+public class JYF_RED extends OpMode {
 
     // =========================
     // 你要识别/对准的 Tag number 在这里改：
@@ -54,7 +54,7 @@ public class OnBot_Test extends OpMode {
 
     // --- HuskyLens ---
     private HuskyLens husky;
-    private static final int HUSKY_CENTER_X = 130;
+    private static final int HUSKY_CENTER_X = 140;
 
     // ===== AutoAim 控制参数 =====
     // P：越大锁定越快但更容易过冲
@@ -358,7 +358,7 @@ public class OnBot_Test extends OpMode {
             }
         }
 
-        double targetVelocity = 1050;
+        double targetVelocity = 1000;
         double reverseVelocity = 1000;
         double shootReverseTime = 0.15;
 
@@ -392,7 +392,7 @@ public class OnBot_Test extends OpMode {
 
         intake.setPower(IntakeMotorStatus ? 1.0 : 0.0);
 
-        double pullPowerBackMid = 0.7;
+        double pullPowerBackMid = 0.4;
 
         // =========================
         // FRONT PULLUP（LB）
