@@ -1,6 +1,7 @@
 package org.firstinspires.ftc.teamcode.teleop.red;
 
 import com.acmerobotics.dashboard.FtcDashboard;
+import com.acmerobotics.dashboard.config.Config;
 import com.acmerobotics.dashboard.telemetry.MultipleTelemetry;
 import com.qualcomm.hardware.dfrobot.HuskyLens;
 import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
@@ -24,20 +25,83 @@ import java.util.List;
 @TeleOp(name = "JYF_RED_LIN", group = "TeleOp5")
 public class JYF_RED_LIN extends LinearOpMode {
 
-    // =========================
-    // 你要识别/对准的 Tag number 在这里改：
-    // -1 = 不限定
-    // 5  = 只对准 5 号 tag
-    // =========================
-    private int targetTagId = 5;
+    /**
+     * ✅ Dashboard 实时调参：打开 http://192.168.43.1:8080/dash -> Config -> DriveTuning
+     * 里面改的值会立刻影响下面的逻辑（不用重新编译）。
+     */
+    @Config
+    public static class DriveTuning {
+        // --- AprilTag / Husky ---
+        public static int targetTagId = 5;          // -1 不限定
+        public static int HUSKY_CENTER_X = 140;     // 画面中心点（你之前就是调这个让对准偏不偏）
+        public static boolean strictIdFilter = true;
+        public static boolean invertAim = false;
 
-    // =========================
-    // goBILDA RGB Indicator Light（PWM 当 Servo）
-    // =========================
-    private Servo statusLed = null;
-    private double LED_RED_POS   = 0.28;
-    private double LED_GREEN_POS = 0.49;
-    private double LED_BLUE_POS  = 0.611;
+        // --- AutoAim PD ---
+        public static double aimKp = 0.006;
+        public static double aimKd = 0.0025;
+        public static double aimMin = 0.05;
+        public static double aimMax = 0.55;
+        public static int aimDeadbandPx = 16;
+
+        // --- 误差滤波 ---
+        public static double errAlpha = 0.35;
+
+        // --- 对正判定稳定帧数 ---
+        public static int alignedNeedFrames = 5;
+
+        // --- 扫描参数 ---
+        public static double scanPower = 0.14;
+        public static double scanPeriod = 1.2;
+
+        // --- 输出限速/刹车 ---
+        public static double rotSlewPerSec = 1.6;
+        public static double flipBrakeSeconds = 0.08;
+
+        // --- IMU 阻尼（防过冲抽搐）---
+        public static double yawRateDampK = 0.045;  // 0.03~0.08
+        public static double yawRateLimit = 180.0;  // 120~220
+        public static double scanYawRateCmd = 60.0; // 40~90
+
+        // --- LED 位置（你也可以在线微调到最准的红/绿/蓝）---
+        public static double LED_RED_POS   = 0.28;
+        public static double LED_GREEN_POS = 0.49;
+        public static double LED_BLUE_POS  = 0.611;
+
+        // --- Shooter 目标速度也可以在线调（可选）---
+        public static double shooterTargetVel = 1000;
+        public static double shooterReverseVel = 1000;
+        public static double shooterReverseTime = 0.15;
+
+        // --- 红灯闪烁参数（⚠️ 不再 sleep 卡 loop）---
+        public static double redBlinkPeriodSec = 0.5; // 0.5=每半秒切一次
+    }
+
+    // ---------------- 硬件 ----------------
+    private DcMotor leftFrontMotor;
+    private DcMotor rightFrontMotor;
+    private DcMotor leftBackMotor;
+    private DcMotor rightBackMotor;
+
+    private DcMotorEx shootMotorL;
+    private DcMotorEx shootMotorR;
+
+    private DcMotor intake;
+
+    private CRServo pullUp_back;
+    private CRServo pullUp_mid;
+    private CRServo pullUp_frontL;
+    private CRServo pullUp_frontR;
+
+    private Servo cam_rotate;
+    private Servo statusLed;
+
+    // --- HuskyLens ---
+    private HuskyLens husky;
+
+    // --- IMU ---
+    private IMU imu;
+    private boolean imuOk = false;
 
     // ---------------- 状态 ----------------
     private boolean shootMotorStatus = false;
@@ -60,92 +124,44 @@ public class JYF_RED_LIN extends LinearOpMode {
     private int autoMoveStage = 0;              // 0=未运行, 1=前进, 2=后退
     private ElapsedTime autoMoveTimer = new ElapsedTime();
 
-    // --- HuskyLens ---
-    private HuskyLens husky;
-    private static final int HUSKY_CENTER_X = 140;
-
-    // ===== AutoAim 控制参数 =====
-    private double aimKp = 0.006;
-    private double aimKd = 0.0025;
-    private double aimMin = 0.05;
-    private double aimMax = 0.55;
-    private int aimDeadbandPx = 16;
-
     // ===== 误差滤波 + dt =====
-    private double errAlpha = 0.35;
     private double filtErr = 0.0;
     private double lastFiltErr = 0.0;
     private ElapsedTime aimDtTimer = new ElapsedTime();
 
-    // ===== 目标丢失保持（只给 LED/UI 用，不再用于控制）=====
+    // ===== 目标丢失保持（只给 UI 用）=====
+    private boolean hasTargetTag = false;
+    private boolean tagVisibleNow = false;
     private ElapsedTime tagSeenTimer = new ElapsedTime();
     private double tagHoldSeconds = 0.25;
 
-    // ===== “对正”连续帧确认（防 LED 乱跳）=====
+    // ===== 对正帧数 =====
+    private boolean alignedToTag = false;
     private int alignedFrames = 0;
-    private int alignedNeedFrames = 5;
 
-    // ===== 扫描：来回扫 =====
+    // ===== 扫描 timer =====
     private ElapsedTime scanTimer = new ElapsedTime();
-    private double scanPower = 0.14;
-    private double scanPeriod = 1.2;
 
-    // 方向开关：如果反了改 true
-    private boolean invertAim = false;
-
-    // 如果 TagSeenId 经常 = -1，先设 false
-    private boolean strictIdFilter = true;
-
-    // ===== 旋转输出限速（slew）=====
+    // ===== slew 限速 =====
     private double lastRotCmd = 0.0;
-    private double rotSlewPerSec = 1.6;
 
-    // ===== 过冲抑制：误差符号翻转时短暂刹车 =====
+    // ===== 过冲抑制 =====
     private int lastErrSign = 0;
     private ElapsedTime signFlipTimer = new ElapsedTime();
-    private double flipBrakeSeconds = 0.08;
 
-    // ===== Husky 状态 =====
-    private boolean hasTargetTag = false;
-    private boolean tagVisibleNow = false;
-    private boolean alignedToTag = false;
-
+    // ===== Husky 输出 =====
     private int targetErrorPx = 0;
     private int targetSeenId = -1;
     private int targetSeenX = -1;
 
-    // =========================
-    // IMU（Control Hub 内建）
-    // =========================
-    private IMU imu;
-    private boolean imuOk = false;
-
-    // IMU 阻尼参数（你主要调这俩）
-    private double yawRateDampK = 0.045;  // 0.03~0.08
-    private double yawRateLimit = 180.0;  // deg/s: 120~220
-    private double scanYawRateCmd = 60.0; // 丢目标扫描角速度 40~90
-
-    // ---------------- 硬件 ----------------
-    private DcMotor leftFrontMotor;
-    private DcMotor rightFrontMotor;
-    private DcMotor leftBackMotor;
-    private DcMotor rightBackMotor;
-
-    private DcMotorEx shootMotorL;
-    private DcMotorEx shootMotorR;
-
-    private DcMotor intake;
-
-    private CRServo pullUp_back;
-    private CRServo pullUp_mid;
-    private CRServo pullUp_frontL;
-    private CRServo pullUp_frontR;
-
-    private Servo cam_rotate;
+    // ===== 红灯闪烁 timer（替代 sleep）=====
+    private ElapsedTime redBlinkTimer = new ElapsedTime();
+    private boolean redBlinkOn = true;
 
     @Override
     public void runOpMode() {
         telemetry = new MultipleTelemetry(telemetry, FtcDashboard.getInstance().getTelemetry());
+
         // ========== init 硬件 ==========
         leftFrontMotor  = hardwareMap.get(DcMotor.class, "leftfront");
         rightFrontMotor = hardwareMap.get(DcMotor.class, "rightfront");
@@ -164,7 +180,7 @@ public class JYF_RED_LIN extends LinearOpMode {
         cam_rotate    = hardwareMap.get(Servo.class, "cam_rotate");
 
         statusLed = hardwareMap.get(Servo.class, "statusLed");
-        statusLed.setPosition(LED_RED_POS);
+        statusLed.setPosition(DriveTuning.LED_RED_POS);
 
         husky = hardwareMap.get(HuskyLens.class, "huskylens");
         safeKnock(husky);
@@ -205,7 +221,7 @@ public class JYF_RED_LIN extends LinearOpMode {
         // IMU 初始化（USB 在上方，Logo 朝左）
         initImu();
 
-        // 计时器 reset
+        // timers
         shooterReverseTimer.reset();
         pullupFrontReverseTimer.reset();
         autoMoveTimer.reset();
@@ -213,32 +229,33 @@ public class JYF_RED_LIN extends LinearOpMode {
         scanTimer.reset();
         tagSeenTimer.reset();
         signFlipTimer.reset();
+        redBlinkTimer.reset();
 
-        telemetry.addLine("Init done. Waiting for start...");
+        telemetry.addLine("Init done. Open Dashboard -> Config -> DriveTuning to live-tune.");
         telemetry.addData("IMU", imuOk ? "OK" : "NO");
         telemetry.update();
 
         waitForStart();
 
-        // ========== 开始后再 reset 一次（更干净） ==========
         aimDtTimer.reset();
         scanTimer.reset();
         tagSeenTimer.reset();
         signFlipTimer.reset();
+        redBlinkTimer.reset();
 
         while (opModeIsActive()) {
 
             // =========================
-            // 更新 HuskyLens 状态
+            // 更新 HuskyLens 状态（使用 Dashboard 可改参数）
             // =========================
             updateTagStatus();
 
             // =========================
             // LED：Shooter 没开=红闪；开了且对正稳定=绿；否则蓝
             // =========================
-            boolean alignedStable = alignedFrames >= alignedNeedFrames;
-            if (!shootMotorStatus) led_red_blink();
-            else statusLed.setPosition(alignedStable ? LED_GREEN_POS : LED_BLUE_POS);
+            boolean alignedStable = alignedFrames >= DriveTuning.alignedNeedFrames;
+            if (!shootMotorStatus) ledRedBlinkNoSleep();
+            else statusLed.setPosition(alignedStable ? DriveTuning.LED_GREEN_POS : DriveTuning.LED_BLUE_POS);
 
             // =========================
             // DRIVE 输入
@@ -259,7 +276,7 @@ public class JYF_RED_LIN extends LinearOpMode {
             }
 
             // =========================
-            // D-pad Down 自动前后移动（沿用你逻辑）
+            // D-pad Down 自动前后移动
             // =========================
             boolean dpadDownPressed = gamepad1.dpad_down && !lastDpadDown;
             lastDpadDown = gamepad1.dpad_down;
@@ -286,13 +303,12 @@ public class JYF_RED_LIN extends LinearOpMode {
             }
 
             // =========================
-            // RB：按住自动对准（原地旋转） + IMU 阻尼
+            // RB：按住自动对准（原地旋转） + IMU 阻尼（全部可实时改）
             // =========================
             boolean rbAimHeld = gamepad1.right_bumper;
 
             double yawDeg = 0.0;
             double yawRate = 0.0;
-
             if (imuOk) {
                 AngularVelocity av = imu.getRobotAngularVelocity(AngleUnit.DEGREES);
                 yawRate = av.zRotationRate;
@@ -309,15 +325,15 @@ public class JYF_RED_LIN extends LinearOpMode {
 
                 if (tagVisibleNow) {
                     // 误差滤波
-                    filtErr = errAlpha * targetErrorPx + (1.0 - errAlpha) * filtErr;
+                    filtErr = DriveTuning.errAlpha * targetErrorPx + (1.0 - DriveTuning.errAlpha) * filtErr;
 
                     // D 项
                     double derr = (filtErr - lastFiltErr) / dt;
                     lastFiltErr = filtErr;
 
                     // PD
-                    rotCmd = aimKp * filtErr + aimKd * derr;
-                    if (invertAim) rotCmd = -rotCmd;
+                    rotCmd = DriveTuning.aimKp * filtErr + DriveTuning.aimKd * derr;
+                    if (DriveTuning.invertAim) rotCmd = -rotCmd;
 
                     // 非线性缩放：接近中心更柔
                     double norm = Math.min(1.0, Math.abs(filtErr) / 80.0);
@@ -331,24 +347,24 @@ public class JYF_RED_LIN extends LinearOpMode {
                     }
                     lastErrSign = sign;
 
-                    if (signFlipTimer.seconds() < flipBrakeSeconds) {
+                    if (signFlipTimer.seconds() < DriveTuning.flipBrakeSeconds) {
                         rotCmd *= 0.2;
                     }
 
                     // 接近中心不强制 aimMin
-                    if (Math.abs(targetErrorPx) > (aimDeadbandPx + 6)) {
-                        if (rotCmd > 0) rotCmd = Math.max(rotCmd, aimMin);
-                        else            rotCmd = Math.min(rotCmd, -aimMin);
+                    if (Math.abs(targetErrorPx) > (DriveTuning.aimDeadbandPx + 6)) {
+                        if (rotCmd > 0) rotCmd = Math.max(rotCmd, DriveTuning.aimMin);
+                        else            rotCmd = Math.min(rotCmd, -DriveTuning.aimMin);
                     } else {
-                        if (Math.abs(targetErrorPx) <= aimDeadbandPx) rotCmd = 0.0;
+                        if (Math.abs(targetErrorPx) <= DriveTuning.aimDeadbandPx) rotCmd = 0.0;
                     }
 
-                    rotCmd = clamp(rotCmd, -aimMax, aimMax);
+                    rotCmd = clamp(rotCmd, -DriveTuning.aimMax, DriveTuning.aimMax);
 
                     // IMU 阻尼：抑制过冲
                     if (imuOk) {
-                        rotCmd -= yawRateDampK * yawRate;
-                        if (Math.abs(yawRate) > yawRateLimit) rotCmd *= 0.35;
+                        rotCmd -= DriveTuning.yawRateDampK * yawRate;
+                        if (Math.abs(yawRate) > DriveTuning.yawRateLimit) rotCmd *= 0.35;
                     }
 
                 } else {
@@ -357,19 +373,19 @@ public class JYF_RED_LIN extends LinearOpMode {
                     lastFiltErr = filtErr;
                     lastRotCmd *= 0.85;
 
-                    double dir = (Math.floor(scanTimer.seconds() / scanPeriod) % 2 == 0) ? 1.0 : -1.0;
+                    double dir = (Math.floor(scanTimer.seconds() / DriveTuning.scanPeriod) % 2 == 0) ? 1.0 : -1.0;
 
                     if (imuOk) {
-                        double desired = dir * scanYawRateCmd;
+                        double desired = dir * DriveTuning.scanYawRateCmd;
                         double errRate = desired - yawRate;
-                        rotCmd = clamp(0.0045 * errRate, -scanPower, scanPower);
+                        rotCmd = clamp(0.0045 * errRate, -DriveTuning.scanPower, DriveTuning.scanPower);
                     } else {
-                        rotCmd = dir * scanPower;
+                        rotCmd = dir * DriveTuning.scanPower;
                     }
                 }
 
                 // slew 限速
-                double maxDelta = rotSlewPerSec * dt;
+                double maxDelta = DriveTuning.rotSlewPerSec * dt;
                 rotCmd = clamp(rotCmd, lastRotCmd - maxDelta, lastRotCmd + maxDelta);
                 lastRotCmd = rotCmd;
 
@@ -386,7 +402,7 @@ public class JYF_RED_LIN extends LinearOpMode {
             rightBackMotor.setPower(rb);
 
             // =========================
-            // SHOOTER：toggle = Y
+            // SHOOTER：toggle = Y（速度也可实时改）
             // =========================
             boolean shootPressed = gamepad1.y && !lastShooterToggleBtn;
             lastShooterToggleBtn = gamepad1.y;
@@ -403,18 +419,14 @@ public class JYF_RED_LIN extends LinearOpMode {
                 }
             }
 
-            double targetVelocity = 1000;
-            double reverseVelocity = 1000;
-            double shootReverseTime = 0.15;
-
             if (shootMotorStatus) {
-                if (shooterReversing && shooterReverseTimer.seconds() < shootReverseTime) {
-                    shootMotorL.setVelocity(-reverseVelocity);
-                    shootMotorR.setVelocity(-reverseVelocity);
+                if (shooterReversing && shooterReverseTimer.seconds() < DriveTuning.shooterReverseTime) {
+                    shootMotorL.setVelocity(-DriveTuning.shooterReverseVel);
+                    shootMotorR.setVelocity(-DriveTuning.shooterReverseVel);
                 } else {
                     shooterReversing = false;
-                    shootMotorL.setVelocity(targetVelocity);
-                    shootMotorR.setVelocity(targetVelocity);
+                    shootMotorL.setVelocity(DriveTuning.shooterTargetVel);
+                    shootMotorR.setVelocity(DriveTuning.shooterTargetVel);
                 }
             } else {
                 shooterReversing = false;
@@ -474,16 +486,20 @@ public class JYF_RED_LIN extends LinearOpMode {
             }
 
             // =========================
-            // TELEMETRY
+            // TELEMETRY（Dashboard + DS 都能看）
             // =========================
+            telemetry.addData("Shoot Motor", shootMotorStatus ? "ON" : "OFF");
+            telemetry.addData("ConfigClass", "DriveTuning (Dashboard->Config)");
             telemetry.addData("IMU", imuOk ? "OK" : "NO");
             telemetry.addData("Yaw(deg)", String.format("%.1f", yawDeg));
             telemetry.addData("YawRate(deg/s)", String.format("%.1f", yawRate));
 
-            telemetry.addData("TargetTagId", targetTagId);
+            telemetry.addData("targetTagId", DriveTuning.targetTagId);
+            telemetry.addData("HUSKY_CENTER_X", DriveTuning.HUSKY_CENTER_X);
             telemetry.addData("tagVisibleNow", tagVisibleNow);
-            telemetry.addData("aligned(raw)", alignedToTag);
             telemetry.addData("alignedFrames", alignedFrames);
+            telemetry.addData("aimDeadbandPx", DriveTuning.aimDeadbandPx);
+
             telemetry.addData("TagSeenId", targetSeenId);
             telemetry.addData("TagX", targetSeenX);
             telemetry.addData("ErrPx", targetErrorPx);
@@ -493,6 +509,8 @@ public class JYF_RED_LIN extends LinearOpMode {
             telemetry.addData("Shooter", shootMotorStatus ? "ON" : "OFF");
             telemetry.addData("Intake", IntakeMotorStatus ? "ON" : "OFF");
             telemetry.update();
+
+            idle();
         }
     }
 
@@ -525,7 +543,7 @@ public class JYF_RED_LIN extends LinearOpMode {
     }
 
     /**
-     * 更新 HuskyLens 状态
+     * 更新 HuskyLens 状态（使用 Dashboard 可改参数）
      */
     private void updateTagStatus() {
         tagVisibleNow = false;
@@ -542,11 +560,11 @@ public class JYF_RED_LIN extends LinearOpMode {
             for (HuskyLens.Block b : blocks) {
                 int id = getBlockIdSafe(b);
 
-                if (targetTagId != -1) {
-                    if (strictIdFilter) {
-                        if (id != targetTagId) continue;
+                if (DriveTuning.targetTagId != -1) {
+                    if (DriveTuning.strictIdFilter) {
+                        if (id != DriveTuning.targetTagId) continue;
                     } else {
-                        if (id != -1 && id != targetTagId) continue;
+                        if (id != -1 && id != DriveTuning.targetTagId) continue;
                     }
                 }
 
@@ -566,8 +584,8 @@ public class JYF_RED_LIN extends LinearOpMode {
             targetSeenId = getBlockIdSafe(best);
             targetSeenX = best.x;
 
-            targetErrorPx = best.x - HUSKY_CENTER_X;
-            alignedToTag = Math.abs(targetErrorPx) <= aimDeadbandPx;
+            targetErrorPx = best.x - DriveTuning.HUSKY_CENTER_X;
+            alignedToTag = Math.abs(targetErrorPx) <= DriveTuning.aimDeadbandPx;
         } else {
             if (hasTargetTag && tagSeenTimer.seconds() <= tagHoldSeconds) hasTargetTag = true;
             else hasTargetTag = false;
@@ -644,10 +662,15 @@ public class JYF_RED_LIN extends LinearOpMode {
         } catch (Exception ignored) {}
     }
 
-    private void led_red_blink() {
-        statusLed.setPosition(LED_RED_POS);
-        sleep(500);
-        statusLed.setPosition(0);
-        sleep(500);
+    /**
+     * ✅ 替代你原来的 sleep 闪烁（不会卡 loop，不会让 autoAim 抽风）
+     */
+    private void ledRedBlinkNoSleep() {
+        double period = Math.max(0.1, DriveTuning.redBlinkPeriodSec);
+        if (redBlinkTimer.seconds() >= period) {
+            redBlinkTimer.reset();
+            redBlinkOn = !redBlinkOn;
+        }
+        statusLed.setPosition(redBlinkOn ? DriveTuning.LED_RED_POS : 0.0);
     }
 }
