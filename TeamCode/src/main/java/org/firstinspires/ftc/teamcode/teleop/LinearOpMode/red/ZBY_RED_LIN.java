@@ -1,4 +1,4 @@
-package org.firstinspires.ftc.teamcode.teleop.red;
+package org.firstinspires.ftc.teamcode.teleop.LinearOpMode.red;
 
 import com.acmerobotics.dashboard.FtcDashboard;
 import com.acmerobotics.dashboard.config.Config;
@@ -22,13 +22,9 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.List;
 
-@TeleOp(name = "JYF_RED_LIN", group = "TeleOp5")
-public class JYF_RED_LIN extends LinearOpMode {
+@TeleOp(name = "ZBY_RED_LIN", group = "TeleOp5")
+public class ZBY_RED_LIN extends LinearOpMode {
 
-    /**
-     * ✅ Dashboard 实时调参：打开 http://192.168.43.1:8080/dash -> Config -> DriveTuning
-     * 里面改的值会立刻影响下面的逻辑（不用重新编译）。
-     */
     @Config
     public static class DriveTuning {
         // --- AprilTag / Husky ---
@@ -72,8 +68,6 @@ public class JYF_RED_LIN extends LinearOpMode {
         public static double shooterTargetVel = 1000;
         public static double shooterReverseVel = 1000;
         public static double shooterReverseTime = 0.15;
-
-        // --- 红灯闪烁参数（⚠️ 不再 sleep 卡 loop）---
         public static double redBlinkPeriodSec = 0.5; // 0.5=每半秒切一次
     }
 
@@ -260,9 +254,9 @@ public class JYF_RED_LIN extends LinearOpMode {
             // =========================
             // DRIVE 输入
             // =========================
-            double forward = -gamepad1.right_stick_y;
-            double pan     =  gamepad1.right_stick_x;
-            double rotate  =  gamepad1.left_stick_x;
+            double forward = -gamepad1.left_stick_y;
+            double pan     =  gamepad1.left_stick_x;
+            double rotate  =  gamepad1.right_stick_x;
 
             double lf = forward + pan + rotate;
             double rf = forward - pan - rotate;
@@ -662,9 +656,6 @@ public class JYF_RED_LIN extends LinearOpMode {
         } catch (Exception ignored) {}
     }
 
-    /**
-     * ✅ 替代你原来的 sleep 闪烁（不会卡 loop，不会让 autoAim 抽风）
-     */
     private void ledRedBlinkNoSleep() {
         double period = Math.max(0.1, DriveTuning.redBlinkPeriodSec);
         if (redBlinkTimer.seconds() >= period) {

@@ -1,5 +1,6 @@
-package org.firstinspires.ftc.teamcode.teleop.red;
+package org.firstinspires.ftc.teamcode.teleop.OpMode.blue;
 
+import com.qualcomm.hardware.dfrobot.HuskyLens;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.CRServo;
@@ -8,21 +9,19 @@ import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
-import com.qualcomm.hardware.dfrobot.HuskyLens;
-
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.List;
 
-@TeleOp(name = "JYF_RED", group = "TeleOp3")
-public class JYF_RED extends OpMode {
+@TeleOp(name = "ZBY_BLUE", group = "TeleOp4")
+public class ZBY_BLUE extends OpMode {
 
     // =========================
     // 你要识别/对准的 Tag number 在这里改：
     // -1 = 不限定（看到哪个 tag 就对哪个）
     // 5  = 只对准 5 号 tag
     // =========================
-    private int targetTagId = 5;
+    private int targetTagId = 1;
 
     // =========================
     // goBILDA RGB Indicator Light（PWM 控制）当 Servo 用
@@ -209,6 +208,7 @@ public class JYF_RED extends OpMode {
         if (shootMotorL.getPower() == 0){
             statusLed.setPosition(LED_RED_POS);
         }
+
         // =========================
         // 更新 HuskyLens 状态
         // =========================
@@ -223,9 +223,9 @@ public class JYF_RED extends OpMode {
         // =========================
         // DRIVE 输入
         // =========================
-        double forward = -gamepad1.right_stick_y;
-        double pan     =  gamepad1.right_stick_x;
-        double rotate  =  gamepad1.left_stick_x;
+        double forward = -gamepad1.left_stick_y;
+        double pan     =  gamepad1.left_stick_x;
+        double rotate  =  gamepad1.right_stick_x;
 
         double lf = forward + pan + rotate;
         double rf = forward - pan - rotate;

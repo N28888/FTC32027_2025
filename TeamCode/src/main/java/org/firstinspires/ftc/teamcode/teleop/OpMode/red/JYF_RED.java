@@ -1,6 +1,5 @@
-package org.firstinspires.ftc.teamcode.teleop.blue;
+package org.firstinspires.ftc.teamcode.teleop.OpMode.red;
 
-import com.qualcomm.hardware.dfrobot.HuskyLens;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.CRServo;
@@ -9,19 +8,26 @@ import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
+import com.qualcomm.hardware.dfrobot.HuskyLens;
+
+import com.qualcomm.robotcore.hardware.IMU;
+import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
+import org.firstinspires.ftc.robotcore.external.navigation.YawPitchRollAngles;
+import org.firstinspires.ftc.robotcore.external.navigation.AngularVelocity;
+import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
+
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.List;
 
-@TeleOp(name = "LHX_BLUE", group = "TeleOp4")
-public class LHX_BLUE extends OpMode {
-
+@TeleOp(name = "JYF_RED", group = "TeleOp3")
+public class JYF_RED extends OpMode {
     // =========================
     // 你要识别/对准的 Tag number 在这里改：
     // -1 = 不限定（看到哪个 tag 就对哪个）
     // 5  = 只对准 5 号 tag
     // =========================
-    private int targetTagId = 1;
+    private int targetTagId = 5;
 
     // =========================
     // goBILDA RGB Indicator Light（PWM 控制）当 Servo 用
@@ -29,7 +35,7 @@ public class LHX_BLUE extends OpMode {
     private Servo statusLed = null;
     private double LED_RED_POS   = 0.28;
     private double LED_GREEN_POS = 0.49;
-    private double LED_BLUE_POS = 0.611;
+    private double LED_BLUE_POS  = 0.611;
 
     // ---------------- 状态 ----------------
     boolean shootMotorStatus = false;
@@ -57,14 +63,9 @@ public class LHX_BLUE extends OpMode {
     private static final int HUSKY_CENTER_X = 140;
 
     // ===== AutoAim 控制参数 =====
-    // P：越大锁定越快但更容易过冲
     private double aimKp = 0.006;
-    // D：越大越稳但太大可能迟钝
     private double aimKd = 0.0025;
-
-    // ✅ 为了减少“过度转向抽搐”，把 aimMin 降低
     private double aimMin = 0.05;
-
     private double aimMax = 0.55;
     private int aimDeadbandPx = 16;
 
@@ -95,8 +96,6 @@ public class LHX_BLUE extends OpMode {
 
     // ===== 旋转输出限速（slew，防止突然抽风）=====
     private double lastRotCmd = 0.0;
-
-    // ✅ 为了减少“左右重复抽搐”，把限速调小一点（更稳）
     private double rotSlewPerSec = 1.6;
 
     // ===== 过冲抑制：误差符号翻转时短暂刹车 =====
@@ -105,13 +104,26 @@ public class LHX_BLUE extends OpMode {
     private double flipBrakeSeconds = 0.08;
 
     // ===== 状态（telemetry/LED）=====
-    private boolean hasTargetTag = false;     // “最近见过”（用于 LED/telemetry）
-    private boolean tagVisibleNow = false;    // “这一帧真的看到”（用于控制）
+    private boolean hasTargetTag = false;
+    private boolean tagVisibleNow = false;
     private boolean alignedToTag = false;
 
     private int targetErrorPx = 0;
     private int targetSeenId = -1;
     private int targetSeenX = -1;
+
+    // =========================
+    // IMU（Control Hub 内建）
+    // =========================
+    private IMU imu;
+    private boolean imuOk = false;
+
+    // ✅ IMU 阻尼参数：抑制过度转向/抽搐（你主要调这俩）
+    private double yawRateDampK = 0.045;   // 0.03~0.08：越大越“刹车”
+    private double yawRateLimit = 180.0;   // deg/s：超过就强制减小输出（120~220）
+
+    // ✅ 丢目标扫描用“固定角速度”，更稳定（单位：deg/s）
+    private double scanYawRateCmd = 60.0;  // 40~90
 
     // ---------------- 硬件 ----------------
     private DcMotor leftFrontMotor;
@@ -187,7 +199,7 @@ public class LHX_BLUE extends OpMode {
         shootMotorR.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
 
         shootMotorL.setVelocity(0);
-        shootMotorR.setPower(0);
+        shootMotorR.setVelocity(0);
         intake.setPower(0);
 
         pullUp_back.setPower(0);
@@ -197,35 +209,68 @@ public class LHX_BLUE extends OpMode {
 
         cam_rotate.setPosition(0.5);
 
+        // =========================
+        // IMU 初始化（Control Hub 内建）
+        // =========================
+        initImu();
+
         aimDtTimer.reset();
         scanTimer.reset();
         tagSeenTimer.reset();
         signFlipTimer.reset();
     }
 
+    private void initImu() {
+        imuOk = false;
+        try {
+            // 常见名字 "imu"
+            imu = hardwareMap.get(IMU.class, "imu");
+            imuOk = true;
+        } catch (Exception e1) {
+            try {
+                // 有的项目里是 "IMU"
+                imu = hardwareMap.get(IMU.class, "IMU");
+                imuOk = true;
+            } catch (Exception e2) {
+                imuOk = false;
+            }
+        }
+
+        if (!imuOk) return;
+
+        // 这里要告诉 SDK：你的 Control Hub 是怎么装在机器人上的
+        // 如果你不确定，就先用默认 LogoUp/UsbForward 测试 yaw 正不正常。
+        RevHubOrientationOnRobot orientation =
+                new RevHubOrientationOnRobot(
+                        RevHubOrientationOnRobot.LogoFacingDirection.UP,
+                        RevHubOrientationOnRobot.UsbFacingDirection.FORWARD
+                );
+
+        imu.initialize(new IMU.Parameters(orientation));
+
+        // 重置 yaw 为 0（可选）
+        imu.resetYaw();
+    }
+
     @Override
     public void loop() {
-        if (shootMotorL.getPower() == 0){
+        // 如果 shooter 没开，你原来这里想亮红：但你后面又覆盖 LED 了
+        // 我保持你逻辑：后面 LED 会按对准状态显示（蓝/绿）
+        if (shootMotorL.getPower() == 0) {
             statusLed.setPosition(LED_RED_POS);
         }
 
-        // =========================
         // 更新 HuskyLens 状态
-        // =========================
         updateTagStatus();
 
-        // =========================
-        // LED：稳定对正才绿
-        // =========================
+        // LED：稳定对正才绿，否则蓝（你设定的）
         boolean alignedStable = alignedFrames >= alignedNeedFrames;
         statusLed.setPosition(alignedStable ? LED_GREEN_POS : LED_BLUE_POS);
 
-        // =========================
         // DRIVE 输入
-        // =========================
         double forward = -gamepad1.right_stick_y;
         double pan     =  gamepad1.right_stick_x;
-        double rotate  = -gamepad1.left_stick_x;
+        double rotate  =  gamepad1.left_stick_x;
 
         double lf = forward + pan + rotate;
         double rf = forward - pan - rotate;
@@ -238,9 +283,7 @@ public class LHX_BLUE extends OpMode {
             lf /= max; rf /= max; lb /= max; rb /= max;
         }
 
-        // =========================
         // D-pad Down 自动前后移动
-        // =========================
         boolean dpadDownPressed = gamepad1.dpad_down && !lastDpadDown;
         lastDpadDown = gamepad1.dpad_down;
 
@@ -266,7 +309,7 @@ public class LHX_BLUE extends OpMode {
         }
 
         // =========================
-        // RB：按住自动对准（原地旋转）
+        // RB：按住自动对准（原地旋转） + IMU 稳定
         // =========================
         boolean rbAimHeld = gamepad1.right_bumper;
 
@@ -274,6 +317,16 @@ public class LHX_BLUE extends OpMode {
             double dt = aimDtTimer.seconds();
             if (dt <= 0.0 || dt > 0.1) dt = 0.02;
             aimDtTimer.reset();
+
+            // 读 IMU yawRate（deg/s）
+            double yawRate = 0.0;
+            double yawDeg = 0.0;
+            if (imuOk) {
+                AngularVelocity av = imu.getRobotAngularVelocity(AngleUnit.DEGREES);
+                yawRate = av.zRotationRate; // Z 轴角速度（绕竖直轴转）
+                YawPitchRollAngles ypr = imu.getRobotYawPitchRollAngles();
+                yawDeg = ypr.getYaw(AngleUnit.DEGREES);
+            }
 
             double rotCmd;
 
@@ -285,16 +338,16 @@ public class LHX_BLUE extends OpMode {
                 double derr = (filtErr - lastFiltErr) / dt;
                 lastFiltErr = filtErr;
 
-                // ===== PD =====
+                // PD
                 rotCmd = aimKp * filtErr + aimKd * derr;
                 if (invertAim) rotCmd = -rotCmd;
 
-                // ✅ 非线性缩放：接近中心转得更柔，减少过冲抽搐
-                double norm = Math.min(1.0, Math.abs(filtErr) / 80.0); // 80 可调：越小越敏感
-                double soften = norm * norm;                           // 平方：小误差更软
+                // 非线性缩放：接近中心更柔
+                double norm = Math.min(1.0, Math.abs(filtErr) / 80.0);
+                double soften = norm * norm;
                 rotCmd *= soften;
 
-                // ✅ 过冲抑制：误差符号翻转 -> 短暂刹车
+                // 过冲抑制：误差符号翻转短暂刹车
                 int sign = Integer.compare(targetErrorPx, 0);
                 if (sign != 0 && lastErrSign != 0 && sign != lastErrSign) {
                     signFlipTimer.reset();
@@ -302,7 +355,7 @@ public class LHX_BLUE extends OpMode {
                 lastErrSign = sign;
 
                 if (signFlipTimer.seconds() < flipBrakeSeconds) {
-                    rotCmd *= 0.2; // 刹一下（想更狠就改 0）
+                    rotCmd *= 0.2;
                 }
 
                 // 接近中心不强制 aimMin
@@ -314,17 +367,38 @@ public class LHX_BLUE extends OpMode {
                 }
 
                 rotCmd = clamp(rotCmd, -aimMax, aimMax);
+
+                // ✅ IMU 阻尼：转得越快，给的 rotCmd 越小（抑制过冲）
+                if (imuOk) {
+                    rotCmd -= yawRateDampK * yawRate;
+
+                    // 角速度太大就强行限制（防抽风）
+                    if (Math.abs(yawRate) > yawRateLimit) {
+                        rotCmd *= 0.35;
+                    }
+                }
+
             } else {
-                // 没看到 tag：清掉状态 + 来回扫
+                // 没看到 tag：清掉状态 + 扫描
                 filtErr *= 0.85;
                 lastFiltErr = filtErr;
                 lastRotCmd *= 0.85;
 
+                // ✅ 用 IMU 做“固定角速度扫描”更稳：rotCmd = yawRateCmd 转成功率
+                // 这里用 scanPower 作为功率上限；方向还是来回换
                 double dir = (Math.floor(scanTimer.seconds() / scanPeriod) % 2 == 0) ? 1.0 : -1.0;
-                rotCmd = dir * scanPower;
+
+                if (imuOk) {
+                    // 想要的角速度 - 实际角速度 -> 小 P 控制到 rotCmd（更平滑）
+                    double desired = dir * scanYawRateCmd;
+                    double errRate = desired - yawRate;
+                    rotCmd = clamp(0.0045 * errRate, -scanPower, scanPower);
+                } else {
+                    rotCmd = dir * scanPower;
+                }
             }
 
-            // ✅ slew 限速
+            // slew 限速
             double maxDelta = rotSlewPerSec * dt;
             rotCmd = clamp(rotCmd, lastRotCmd - maxDelta, lastRotCmd + maxDelta);
             lastRotCmd = rotCmd;
@@ -334,6 +408,11 @@ public class LHX_BLUE extends OpMode {
             rf = -rotCmd;
             lb = rotCmd;
             rb = -rotCmd;
+
+            // Telemetry 额外显示 IMU
+            telemetry.addData("IMU", imuOk ? "OK" : "NO");
+            telemetry.addData("Yaw(deg)", String.format("%.1f", yawDeg));
+            telemetry.addData("YawRate(deg/s)", String.format("%.1f", yawRate));
         } else {
             lastRotCmd *= 0.8;
         }
@@ -366,34 +445,28 @@ public class LHX_BLUE extends OpMode {
         double reverseVelocity = 1000;
         double shootReverseTime = 0.15;
 
-        boolean shooterInReversePhase;
-
         if (shootMotorStatus) {
             if (shooterReversing && shooterReverseTimer.seconds() < shootReverseTime) {
                 shootMotorL.setVelocity(-reverseVelocity);
                 shootMotorR.setVelocity(-reverseVelocity);
-                shooterInReversePhase = true;
             } else {
                 shooterReversing = false;
                 shootMotorL.setVelocity(targetVelocity);
                 shootMotorR.setVelocity(targetVelocity);
-                shooterInReversePhase = false;
             }
         } else {
             shooterReversing = false;
             shootMotorL.setVelocity(0);
             shootMotorR.setVelocity(0);
-            shooterInReversePhase = false;
         }
 
         // =========================
-        // INTAKE（D-pad UP）+ back/mid pullup 跟随
+        // INTAKE（D-pad UP）
         // =========================
         boolean intakePressed = gamepad1.dpad_up && !lastIntakeButton;
         lastIntakeButton = gamepad1.dpad_up;
 
         if (intakePressed) IntakeMotorStatus = !IntakeMotorStatus;
-
         intake.setPower(IntakeMotorStatus ? 1.0 : 0.0);
 
         double pullPowerBackMid = 0.4;
@@ -429,17 +502,17 @@ public class LHX_BLUE extends OpMode {
 
         pullUp_frontL.setPower(frontOutput);
         pullUp_frontR.setPower(frontOutput);
-        if ((shootMotorStatus == true && pullUp_frontL.getPower() > 0)){
+
+        if ((shootMotorStatus && pullUp_frontL.getPower() > 0)) {
             pullUp_mid.setPower(0.3);
             pullUp_back.setPower(0.3);
-        }
-        else {
+        } else {
             pullUp_back.setPower(IntakeMotorStatus ? pullPowerBackMid : 0.0);
             pullUp_mid.setPower(0);
         }
 
         // =========================
-        // TELEMETRY
+        // TELEMETRY（你原来的 + 额外 IMU 部分在上面 RB 分支里）
         // =========================
         telemetry.addData("TargetTagId", targetTagId);
         telemetry.addData("strictIdFilter", strictIdFilter);
@@ -452,15 +525,12 @@ public class LHX_BLUE extends OpMode {
         telemetry.addData("FiltErr", String.format("%.1f", filtErr));
         telemetry.addData("rotCmd", String.format("%.2f", lastRotCmd));
 
-        telemetry.addData("LED", alignedStable ? "GREEN" : "RED");
+        telemetry.addData("LED", alignedStable ? "GREEN" : "BLUE");
         telemetry.update();
     }
 
     /**
-     * 更新 HuskyLens 状态：
-     * - tagVisibleNow：这一帧是否真的看到目标（用于控制）
-     * - hasTargetTag：最近是否见过（用于 LED/telemetry，带 hold）
-     * - alignedFrames：连续对正帧
+     * 更新 HuskyLens 状态
      */
     private void updateTagStatus() {
         tagVisibleNow = false;
@@ -504,12 +574,8 @@ public class LHX_BLUE extends OpMode {
             targetErrorPx = best.x - HUSKY_CENTER_X;
             alignedToTag = Math.abs(targetErrorPx) <= aimDeadbandPx;
         } else {
-            // hold 只用于 UI/LED
-            if (hasTargetTag && tagSeenTimer.seconds() <= tagHoldSeconds) {
-                hasTargetTag = true;
-            } else {
-                hasTargetTag = false;
-            }
+            if (hasTargetTag && tagSeenTimer.seconds() <= tagHoldSeconds) hasTargetTag = true;
+            else hasTargetTag = false;
         }
 
         if (alignedToTag) alignedFrames++;

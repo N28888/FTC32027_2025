@@ -1,4 +1,4 @@
-package org.firstinspires.ftc.teamcode.teleop.blue;
+package org.firstinspires.ftc.teamcode.teleop.OpMode.blue;
 
 import com.qualcomm.hardware.dfrobot.HuskyLens;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
@@ -13,8 +13,8 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.List;
 
-@TeleOp(name = "ZBY_BLUE", group = "TeleOp4")
-public class ZBY_BLUE extends OpMode {
+@TeleOp(name = "JYF_BLUE", group = "TeleOp4")
+public class JYF_BLUE extends OpMode {
 
     // =========================
     // 你要识别/对准的 Tag number 在这里改：
@@ -30,6 +30,7 @@ public class ZBY_BLUE extends OpMode {
     private double LED_RED_POS   = 0.28;
     private double LED_GREEN_POS = 0.49;
     private double LED_BLUE_POS = 0.611;
+
 
     // ---------------- 状态 ----------------
     boolean shootMotorStatus = false;
@@ -208,7 +209,6 @@ public class ZBY_BLUE extends OpMode {
         if (shootMotorL.getPower() == 0){
             statusLed.setPosition(LED_RED_POS);
         }
-
         // =========================
         // 更新 HuskyLens 状态
         // =========================
@@ -223,9 +223,9 @@ public class ZBY_BLUE extends OpMode {
         // =========================
         // DRIVE 输入
         // =========================
-        double forward = -gamepad1.left_stick_y;
-        double pan     =  gamepad1.left_stick_x;
-        double rotate  =  gamepad1.right_stick_x;
+        double forward = -gamepad1.right_stick_y;
+        double pan     =  gamepad1.right_stick_x;
+        double rotate  =  gamepad1.left_stick_x;
 
         double lf = forward + pan + rotate;
         double rf = forward - pan - rotate;

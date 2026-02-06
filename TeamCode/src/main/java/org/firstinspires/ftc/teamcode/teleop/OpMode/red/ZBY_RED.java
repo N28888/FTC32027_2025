@@ -1,4 +1,4 @@
-package org.firstinspires.ftc.teamcode.teleop.red;
+package org.firstinspires.ftc.teamcode.teleop.OpMode.red;
 
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
@@ -14,8 +14,8 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.List;
 
-@TeleOp(name = "LHX_RED", group = "TeleOp3")
-public class LHX_RED extends OpMode {
+@TeleOp(name = "ZBY_RED", group = "TeleOp3")
+public class ZBY_RED extends OpMode {
 
     // =========================
     // 你要识别/对准的 Tag number 在这里改：
@@ -224,9 +224,9 @@ public class LHX_RED extends OpMode {
         // =========================
         // DRIVE 输入
         // =========================
-        double forward = -gamepad1.right_stick_y;
-        double pan     =  gamepad1.right_stick_x;
-        double rotate  = -gamepad1.left_stick_x;
+        double forward = -gamepad1.left_stick_y;
+        double pan     =  gamepad1.left_stick_x;
+        double rotate  =  gamepad1.right_stick_x;
 
         double lf = forward + pan + rotate;
         double rf = forward - pan - rotate;
