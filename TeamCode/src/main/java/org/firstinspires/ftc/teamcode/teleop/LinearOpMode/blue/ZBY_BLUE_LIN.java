@@ -22,28 +22,37 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.List;
 
-@TeleOp(name = "ZBY_BLUE_LIN", group = "TeleOp6")
+@TeleOp(name = "ZBY_BLUE_LIN", group = "LinearOp Blue")
 public class ZBY_BLUE_LIN extends LinearOpMode {
 
     @Config
     public static class DriveTuning {
         // --- AprilTag / Husky ---
-        public static int targetTagId = 5;          // -1 不限定
-        public static int HUSKY_CENTER_X = 140;     // 画面中心点（你之前就是调这个让对准偏不偏）
+        public static int targetTagId = 1;          // -1 不限定
+        public static int HUSKY_CENTER_X = 140;     // 画面中心点（调它修“对正偏左/偏右”）
         public static boolean strictIdFilter = true;
         public static boolean invertAim = false;
 
         // --- AutoAim PD ---
-        public static double aimKp = 0.006;
-        public static double aimKd = 0.0025;
-        public static double aimMin = 0.05;
-        public static double aimMax = 0.55;
-        public static int aimDeadbandPx = 16;
+        public static double aimKp = 0.0048;
+        public static double aimKd = 0.0017;
+        public static double aimMin = 0.01;         // 建议 0.00~0.03 更不抽
+        public static double aimMax = 0.42;
+        public static int aimDeadbandPx = 10;       // 建议 10~12
 
         // --- 误差滤波 ---
         public static double errAlpha = 0.35;
 
-        // --- 对正判定稳定帧数 ---
+        // --- 连续帧消抖：连续看到 N 帧才进入控制（解决“突然动两下”）---
+        public static int aimAcquireFrames = 3;     // 2~4
+
+        // --- D 项限幅（防 derr 爆炸导致抽一下）---
+        public static double derrLimit = 900.0;     // 600~1500
+
+        // --- rotCmd 低通滤波：越小越顺、越不抽（0~1）---
+        public static double rotCmdAlpha = 0.28;    // 0.25~0.55
+
+        // --- 对正判定稳定帧数（给 LED 用）---
         public static int alignedNeedFrames = 5;
 
         // --- 扫描参数 ---
@@ -55,20 +64,28 @@ public class ZBY_BLUE_LIN extends LinearOpMode {
         public static double flipBrakeSeconds = 0.08;
 
         // --- IMU 阻尼（防过冲抽搐）---
-        public static double yawRateDampK = 0.045;  // 0.03~0.08
+        public static double yawRateDampK = 0.06;  // 0.03~0.08
         public static double yawRateLimit = 180.0;  // 120~220
         public static double scanYawRateCmd = 60.0; // 40~90
 
-        // --- LED 位置（你也可以在线微调到最准的红/绿/蓝）---
+        // --- LED 位置 ---
         public static double LED_RED_POS   = 0.28;
         public static double LED_GREEN_POS = 0.49;
         public static double LED_BLUE_POS  = 0.611;
 
-        // --- Shooter 目标速度也可以在线调（可选）---
+        // --- Shooter 可调 ---
         public static double shooterTargetVel = 1000;
         public static double shooterReverseVel = 1000;
         public static double shooterReverseTime = 0.15;
-        public static double redBlinkPeriodSec = 0.5; // 0.5=每半秒切一次
+
+        // --- 红灯闪烁 ---
+        public static double redBlinkPeriodSec = 0.5;
+
+        // --- “看到目标 UI hold”（不参与控制）---
+        public static double tagHoldSeconds = 0.25;
+
+        // --- 非线性 soften 的分母（越小越敏感/越容易过冲；越大越柔）---
+        public static double softenDiv = 120;      // 60~120
     }
 
     // ---------------- 硬件 ----------------
@@ -107,41 +124,40 @@ public class ZBY_BLUE_LIN extends LinearOpMode {
 
     // --- 射球电机“预反转” ---
     private boolean shooterReversing = false;
-    private ElapsedTime shooterReverseTimer = new ElapsedTime();
+    private final ElapsedTime shooterReverseTimer = new ElapsedTime();
 
     // --- Front PullUp “预反转”（按住 LB 时生效） ---
     private boolean pullupFrontReversing = false;
-    private ElapsedTime pullupFrontReverseTimer = new ElapsedTime();
+    private final ElapsedTime pullupFrontReverseTimer = new ElapsedTime();
 
     // --- D-pad Down 自动前后移动 ---
     private boolean autoMoveRunning = false;
     private int autoMoveStage = 0;              // 0=未运行, 1=前进, 2=后退
-    private ElapsedTime autoMoveTimer = new ElapsedTime();
+    private final ElapsedTime autoMoveTimer = new ElapsedTime();
 
     // ===== 误差滤波 + dt =====
     private double filtErr = 0.0;
     private double lastFiltErr = 0.0;
-    private ElapsedTime aimDtTimer = new ElapsedTime();
+    private final ElapsedTime aimDtTimer = new ElapsedTime();
 
     // ===== 目标丢失保持（只给 UI 用）=====
     private boolean hasTargetTag = false;
     private boolean tagVisibleNow = false;
-    private ElapsedTime tagSeenTimer = new ElapsedTime();
-    private double tagHoldSeconds = 0.25;
+    private final ElapsedTime tagSeenTimer = new ElapsedTime();
 
     // ===== 对正帧数 =====
     private boolean alignedToTag = false;
     private int alignedFrames = 0;
 
     // ===== 扫描 timer =====
-    private ElapsedTime scanTimer = new ElapsedTime();
+    private final ElapsedTime scanTimer = new ElapsedTime();
 
-    // ===== slew 限速 =====
+    // ===== slew 限速 + 输出记忆 =====
     private double lastRotCmd = 0.0;
 
     // ===== 过冲抑制 =====
     private int lastErrSign = 0;
-    private ElapsedTime signFlipTimer = new ElapsedTime();
+    private final ElapsedTime signFlipTimer = new ElapsedTime();
 
     // ===== Husky 输出 =====
     private int targetErrorPx = 0;
@@ -149,8 +165,11 @@ public class ZBY_BLUE_LIN extends LinearOpMode {
     private int targetSeenX = -1;
 
     // ===== 红灯闪烁 timer（替代 sleep）=====
-    private ElapsedTime redBlinkTimer = new ElapsedTime();
+    private final ElapsedTime redBlinkTimer = new ElapsedTime();
     private boolean redBlinkOn = true;
+
+    // ===== 新增：连续可见帧计数（用于消抖稳定可见）=====
+    private int tagVisibleFrames = 0;
 
     @Override
     public void runOpMode() {
@@ -225,7 +244,7 @@ public class ZBY_BLUE_LIN extends LinearOpMode {
         signFlipTimer.reset();
         redBlinkTimer.reset();
 
-        telemetry.addLine("Init done. Open Dashboard -> Config -> DriveTuning to live-tune.");
+        telemetry.addLine("Init done. Dashboard -> Config -> DriveTuning to live-tune.");
         telemetry.addData("IMU", imuOk ? "OK" : "NO");
         telemetry.update();
 
@@ -240,7 +259,7 @@ public class ZBY_BLUE_LIN extends LinearOpMode {
         while (opModeIsActive()) {
 
             // =========================
-            // 更新 HuskyLens 状态（使用 Dashboard 可改参数）
+            // 更新 HuskyLens 状态（含连续帧消抖）
             // =========================
             updateTagStatus();
 
@@ -297,7 +316,7 @@ public class ZBY_BLUE_LIN extends LinearOpMode {
             }
 
             // =========================
-            // RB：按住自动对准（原地旋转） + IMU 阻尼（全部可实时改）
+            // RB：按住自动对准（原地旋转） + IMU 阻尼
             // =========================
             boolean rbAimHeld = gamepad1.right_bumper;
 
@@ -315,42 +334,56 @@ public class ZBY_BLUE_LIN extends LinearOpMode {
                 if (dt <= 0.0 || dt > 0.1) dt = 0.02;
                 aimDtTimer.reset();
 
+                // 连续看到 N 帧才允许进入控制（核心修复）
+                boolean stableVisible = (tagVisibleFrames >= Math.max(1, DriveTuning.aimAcquireFrames));
+                boolean justAcquired = stableVisible && (tagVisibleFrames == Math.max(1, DriveTuning.aimAcquireFrames));
+
+                // 重新获得目标：清掉 D 项/输出记忆，避免“突然抽一下”
+                if (justAcquired) {
+                    filtErr = 0.0;
+                    lastFiltErr = 0.0;
+                    lastRotCmd = 0.0;
+                    lastErrSign = 0;
+                    signFlipTimer.reset();
+                }
+
                 double rotCmd;
 
-                if (tagVisibleNow) {
+                if (stableVisible) {
                     // 误差滤波
                     filtErr = DriveTuning.errAlpha * targetErrorPx + (1.0 - DriveTuning.errAlpha) * filtErr;
 
-                    // D 项
+                    // D 项（限幅）
                     double derr = (filtErr - lastFiltErr) / dt;
                     lastFiltErr = filtErr;
+                    derr = clamp(derr, -DriveTuning.derrLimit, DriveTuning.derrLimit);
 
                     // PD
                     rotCmd = DriveTuning.aimKp * filtErr + DriveTuning.aimKd * derr;
                     if (DriveTuning.invertAim) rotCmd = -rotCmd;
 
-                    // 非线性缩放：接近中心更柔
-                    double norm = Math.min(1.0, Math.abs(filtErr) / 80.0);
+                    // 非线性 soften
+                    double div = Math.max(20.0, DriveTuning.softenDiv);
+                    double norm = Math.min(1.0, Math.abs(filtErr) / div);
                     double soften = norm * norm;
                     rotCmd *= soften;
 
                     // 过冲抑制：误差符号翻转短暂刹车
                     int sign = Integer.compare(targetErrorPx, 0);
-                    if (sign != 0 && lastErrSign != 0 && sign != lastErrSign) {
-                        signFlipTimer.reset();
-                    }
+                    if (sign != 0 && lastErrSign != 0 && sign != lastErrSign) signFlipTimer.reset();
                     lastErrSign = sign;
+                    if (signFlipTimer.seconds() < DriveTuning.flipBrakeSeconds) rotCmd *= 0.2;
 
-                    if (signFlipTimer.seconds() < DriveTuning.flipBrakeSeconds) {
-                        rotCmd *= 0.2;
-                    }
-
-                    // 接近中心不强制 aimMin
-                    if (Math.abs(targetErrorPx) > (DriveTuning.aimDeadbandPx + 6)) {
-                        if (rotCmd > 0) rotCmd = Math.max(rotCmd, DriveTuning.aimMin);
-                        else            rotCmd = Math.min(rotCmd, -DriveTuning.aimMin);
+                    // deadband：进死区就 0，同时让记忆回落（更不抖）
+                    if (Math.abs(targetErrorPx) <= DriveTuning.aimDeadbandPx) {
+                        rotCmd = 0.0;
+                        lastRotCmd *= 0.6;
                     } else {
-                        if (Math.abs(targetErrorPx) <= DriveTuning.aimDeadbandPx) rotCmd = 0.0;
+                        // aimMin 只在大误差时用
+                        if (Math.abs(targetErrorPx) > (DriveTuning.aimDeadbandPx + 6)) {
+                            if (rotCmd > 0) rotCmd = Math.max(rotCmd, DriveTuning.aimMin);
+                            else            rotCmd = Math.min(rotCmd, -DriveTuning.aimMin);
+                        }
                     }
 
                     rotCmd = clamp(rotCmd, -DriveTuning.aimMax, DriveTuning.aimMax);
@@ -361,20 +394,32 @@ public class ZBY_BLUE_LIN extends LinearOpMode {
                         if (Math.abs(yawRate) > DriveTuning.yawRateLimit) rotCmd *= 0.35;
                     }
 
+                    // rotCmd 低通（比单纯 slew 更能消“抽两下”）
+                    rotCmd = DriveTuning.rotCmdAlpha * rotCmd + (1.0 - DriveTuning.rotCmdAlpha) * lastRotCmd;
+
                 } else {
-                    // 没看到 tag：清状态 + 稳定扫描
-                    filtErr *= 0.85;
-                    lastFiltErr = filtErr;
-                    lastRotCmd *= 0.85;
-
-                    double dir = (Math.floor(scanTimer.seconds() / DriveTuning.scanPeriod) % 2 == 0) ? 1.0 : -1.0;
-
-                    if (imuOk) {
-                        double desired = dir * DriveTuning.scanYawRateCmd;
-                        double errRate = desired - yawRate;
-                        rotCmd = clamp(0.0045 * errRate, -DriveTuning.scanPower, DriveTuning.scanPower);
+                    // 不稳定可见（看到了但没到 N 帧）：停住等待稳定，避免“抽一下”
+                    if (tagVisibleNow) {
+                        lastRotCmd *= 0.7;
+                        rotCmd = 0.0;
                     } else {
-                        rotCmd = dir * DriveTuning.scanPower;
+                        // 真没看到：扫描
+                        filtErr *= 0.85;
+                        lastFiltErr = filtErr;
+                        lastRotCmd *= 0.85;
+
+                        double dir = (Math.floor(scanTimer.seconds() / DriveTuning.scanPeriod) % 2 == 0) ? 1.0 : -1.0;
+
+                        if (imuOk) {
+                            double desired = dir * DriveTuning.scanYawRateCmd;
+                            double errRate = desired - yawRate;
+                            rotCmd = clamp(0.0045 * errRate, -DriveTuning.scanPower, DriveTuning.scanPower);
+                        } else {
+                            rotCmd = dir * DriveTuning.scanPower;
+                        }
+
+                        // 扫描也做一次低通，避免扫的方向切换时“抽”
+                        rotCmd = DriveTuning.rotCmdAlpha * rotCmd + (1.0 - DriveTuning.rotCmdAlpha) * lastRotCmd;
                     }
                 }
 
@@ -385,6 +430,7 @@ public class ZBY_BLUE_LIN extends LinearOpMode {
 
                 // 只旋转
                 lf = rotCmd; rf = -rotCmd; lb = rotCmd; rb = -rotCmd;
+
             } else {
                 lastRotCmd *= 0.8;
             }
@@ -396,7 +442,7 @@ public class ZBY_BLUE_LIN extends LinearOpMode {
             rightBackMotor.setPower(rb);
 
             // =========================
-            // SHOOTER：toggle = Y（速度也可实时改）
+            // SHOOTER：toggle = Y
             // =========================
             boolean shootPressed = gamepad1.y && !lastShooterToggleBtn;
             lastShooterToggleBtn = gamepad1.y;
@@ -480,17 +526,21 @@ public class ZBY_BLUE_LIN extends LinearOpMode {
             }
 
             // =========================
-            // TELEMETRY（Dashboard + DS 都能看）
+            // TELEMETRY
             // =========================
             telemetry.addData("Shoot Motor", shootMotorStatus ? "ON" : "OFF");
-            telemetry.addData("ConfigClass", "DriveTuning (Dashboard->Config)");
+            telemetry.addData("ConfigClass", "DriveTuning");
             telemetry.addData("IMU", imuOk ? "OK" : "NO");
             telemetry.addData("Yaw(deg)", String.format("%.1f", yawDeg));
             telemetry.addData("YawRate(deg/s)", String.format("%.1f", yawRate));
 
             telemetry.addData("targetTagId", DriveTuning.targetTagId);
             telemetry.addData("HUSKY_CENTER_X", DriveTuning.HUSKY_CENTER_X);
+
             telemetry.addData("tagVisibleNow", tagVisibleNow);
+            telemetry.addData("tagVisibleFrames", tagVisibleFrames);
+            telemetry.addData("stableVisibleNeed", DriveTuning.aimAcquireFrames);
+
             telemetry.addData("alignedFrames", alignedFrames);
             telemetry.addData("aimDeadbandPx", DriveTuning.aimDeadbandPx);
 
@@ -500,7 +550,6 @@ public class ZBY_BLUE_LIN extends LinearOpMode {
             telemetry.addData("FiltErr", String.format("%.1f", filtErr));
             telemetry.addData("rotCmd", String.format("%.2f", lastRotCmd));
 
-            telemetry.addData("Shooter", shootMotorStatus ? "ON" : "OFF");
             telemetry.addData("Intake", IntakeMotorStatus ? "ON" : "OFF");
             telemetry.update();
 
@@ -537,7 +586,7 @@ public class ZBY_BLUE_LIN extends LinearOpMode {
     }
 
     /**
-     * 更新 HuskyLens 状态（使用 Dashboard 可改参数）
+     * 更新 HuskyLens 状态（含连续帧消抖 + 对正帧统计）
      */
     private void updateTagStatus() {
         tagVisibleNow = false;
@@ -581,10 +630,16 @@ public class ZBY_BLUE_LIN extends LinearOpMode {
             targetErrorPx = best.x - DriveTuning.HUSKY_CENTER_X;
             alignedToTag = Math.abs(targetErrorPx) <= DriveTuning.aimDeadbandPx;
         } else {
-            if (hasTargetTag && tagSeenTimer.seconds() <= tagHoldSeconds) hasTargetTag = true;
+            double hold = Math.max(0.0, DriveTuning.tagHoldSeconds);
+            if (hasTargetTag && tagSeenTimer.seconds() <= hold) hasTargetTag = true;
             else hasTargetTag = false;
         }
 
+        // 连续可见帧数（控制用）
+        if (tagVisibleNow) tagVisibleFrames++;
+        else tagVisibleFrames = 0;
+
+        // 对正帧数（LED 用）
         if (alignedToTag) alignedFrames++;
         else alignedFrames = 0;
     }
