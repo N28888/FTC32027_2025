@@ -27,7 +27,7 @@ public class JYF_BLUE_LIN extends LinearOpMode {
 
     @Config
     public static class DriveTuning {
-        // --- AprilTag / Husky ---
+        // --- AprilTag / Husky --
         public static int targetTagId = 1;          // -1 不限定
         public static int HUSKY_CENTER_X = 140;     // 画面中心点（调它修“对正偏左/偏右”）
         public static boolean strictIdFilter = true;

@@ -72,6 +72,7 @@ public class LHX_RED_LIN extends LinearOpMode {
         public static double LED_RED_POS   = 0.28;
         public static double LED_GREEN_POS = 0.49;
         public static double LED_BLUE_POS  = 0.611;
+        public static double LED_PURPLE_POS = 0.73;
 
         // --- Shooter 可调 ---
         public static double shooterTargetVel = 1000;
@@ -264,10 +265,11 @@ public class LHX_RED_LIN extends LinearOpMode {
             updateTagStatus();
 
             // =========================
-            // LED：Shooter 没开=红闪；开了且对正稳定=绿；否则蓝
+            // LED：没目标=紫；Shooter 没开=红闪；开了且对正稳定=绿；否则蓝
             // =========================
             boolean alignedStable = alignedFrames >= DriveTuning.alignedNeedFrames;
-            if (!shootMotorStatus) ledRedBlinkNoSleep();
+            if (!hasTargetTag) statusLed.setPosition(DriveTuning.LED_PURPLE_POS);
+            else if (!shootMotorStatus) ledRedBlinkNoSleep();
             else statusLed.setPosition(alignedStable ? DriveTuning.LED_GREEN_POS : DriveTuning.LED_BLUE_POS);
 
             // =========================
