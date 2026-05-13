@@ -9,7 +9,7 @@
 ### Servo
 ```
 0: 垂直右
-1: intake 中右 78
+1: intake 中右
 2: 炮台rotate
 3: shoot angle
 ```
