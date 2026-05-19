@@ -2,54 +2,40 @@
 ## Control Hub
 ### Motor
 ```
-0: LF DcMotor (leftback)
-1: LB DcMotor (leftfront)
-2: L_shoot DcMotor (shootL)
+0: RF Drive
+1: RB Drive
+2: shoot
 ```
 ### Servo
 ```
-0: pullup front L CRServo (pullup_frontL)
-4: pullup mid CRServo (pullup_mid)
+0: 垂直右
+1: intake 中右
+2: 炮台rotate
+3: shoot angle
 ```
 
 ### I2C
 
 ```
-0: IMU (imu)
-1: Huskeylens (cam)
 ```
 
 ## Expansion Hub
 ### Motor
 ```
-0: RF DcMotor (rightback)
-1: RB DcMotor (rightfront)
-2: R_shoot DcMotor (shootR)
-3: Intake DcMotor (intake)
+1: intake 最前
+2: LB Drive
+3: LF Drive
 ```
 ### Servo
 ```
-0: Camera rotation Servo (cam_rotate)
-3: pullup back CRServo (pullup_back)
-4: pullup front R CRServo (pullup_frontR))
+0: 垂直左
+1: intake 中左
+2: intake 后
 ```
 
-
-# AprilTag Number
-```
-ID1: blue goal
-ID2: red goal
-ID3: PPG
-ID4: PGP
-ID5: GPP
-```
 
 
 # Game Controller Config
 
 ## Driver 1 
 
-#### Drive: Joystick
-#### Intake: left_bumper
-#### Pullup: dpad_up
-#### Shoot: right_bumper
