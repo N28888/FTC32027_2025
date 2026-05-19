@@ -128,7 +128,7 @@ public class Blue extends LinearOpMode {
         intake_back.setDirection(CRServo.Direction.REVERSE);
         vertical_left.setDirection(CRServo.Direction.FORWARD);
         vertical_right.setDirection(CRServo.Direction.REVERSE);
-        intake_midL.setDirection(CRServo.Direction.FORWARD);
+        intake_midL.setDirection(CRServo.Direction.REVERSE);
         intake_midR.setDirection(CRServo.Direction.FORWARD);
         shoot_angle.setDirection(CRServo.Direction.FORWARD);
 
