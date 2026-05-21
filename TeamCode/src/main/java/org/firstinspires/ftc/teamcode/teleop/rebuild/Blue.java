@@ -45,8 +45,7 @@ public class Blue extends LinearOpMode {
     private DcMotor intake_front;
     private DcMotorEx shoot;
 
-    private DcMotor vertical_right;
-    private DcMotor vertical_left;
+    private DcMotor vertical;
     private CRServo intake_midR;
     private CRServo intake_midL;
     private CRServo turret;
@@ -63,8 +62,6 @@ public class Blue extends LinearOpMode {
     private boolean shootMotorStatus = false;
     private boolean lastIntakeButton = false;
     private boolean IntakeMotorStatus = false;
-    private boolean lastVerticalButton = false;
-    private boolean VerticalMotorStatus = false;
 
     private boolean lastVerticalToggleButton = false;
     private boolean VerticalToggleMotorStatus = false;
@@ -106,8 +103,7 @@ public class Blue extends LinearOpMode {
         intake_front = hardwareMap.get(DcMotor.class,"intake front");
 
         turret = hardwareMap.get(CRServo.class,"turret rotate");
-        vertical_left = hardwareMap.get(DcMotor.class, "vertical left");
-        vertical_right = hardwareMap.get(DcMotor.class, "vertical right");
+        vertical = hardwareMap.get(DcMotor.class, "vertical");
         intake_midL = hardwareMap.get(CRServo.class, "intake middle left");
         intake_midR = hardwareMap.get(CRServo.class, "intake middle right");
         shoot_angle = hardwareMap.get(CRServo.class, "shoot angle");
@@ -126,8 +122,7 @@ public class Blue extends LinearOpMode {
         intake_front.setDirection(DcMotor.Direction.REVERSE);
 
         turret.setDirection(CRServo.Direction.FORWARD);
-        vertical_left.setDirection(CRServo.Direction.REVERSE);
-        vertical_right.setDirection(CRServo.Direction.FORWARD);
+        vertical.setDirection(CRServo.Direction.FORWARD);
         intake_midL.setDirection(CRServo.Direction.REVERSE);
         intake_midR.setDirection(CRServo.Direction.FORWARD);
         shoot_angle.setDirection(CRServo.Direction.FORWARD);
@@ -138,8 +133,7 @@ public class Blue extends LinearOpMode {
         leftBackMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         rightBackMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
 
-        vertical_left.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
-        vertical_right.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        vertical.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
 
 
         //----- 射球电机行为 -----
@@ -197,11 +191,9 @@ public class Blue extends LinearOpMode {
 
             //----- vertical -----
             if (gamepad2.left_bumper){
-                vertical_left.setPower(VerticalPower);
-                vertical_right.setPower(VerticalPower);
+                vertical.setPower(VerticalPower);
             } else {
-                vertical_right.setPower(0);
-                vertical_left.setPower(0);
+                vertical.setPower(0);
             }
 
             boolean verticaltoggle = gamepad1.dpad_right && !lastVerticalToggleButton;
@@ -209,8 +201,7 @@ public class Blue extends LinearOpMode {
 
             if (verticaltoggle) VerticalToggleMotorStatus = !VerticalToggleMotorStatus;
             {
-                vertical_left.setPower(VerticalToggleMotorStatus ? 1:0);
-                vertical_right.setPower(VerticalToggleMotorStatus ? 1:0);
+                vertical.setPower(VerticalToggleMotorStatus ? 1:0);
             }
 
             //----- shoot -----
