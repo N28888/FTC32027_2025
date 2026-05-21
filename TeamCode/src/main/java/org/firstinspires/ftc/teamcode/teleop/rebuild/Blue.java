@@ -12,7 +12,6 @@ import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.CRServo;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
-import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.IMU;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
@@ -66,6 +65,9 @@ public class Blue extends LinearOpMode {
     private boolean IntakeMotorStatus = false;
     private boolean lastVerticalButton = false;
     private boolean VerticalMotorStatus = false;
+
+    private boolean lastVerticalToggleButton = false;
+    private boolean VerticalToggleMotorStatus = false;
 
     // ----- 动力变量 -----
     private double IntakePower = 1.0;
@@ -147,7 +149,7 @@ public class Blue extends LinearOpMode {
 
         //initIMU();
 
-        telemetry.addLine("Ready. Hold gamepad1 RB to aim AprilTag 20.");
+        telemetry.addLine("Ready. Hold gamepad2 RB to aim AprilTag 20.");
         telemetry.addData("Dashboard D", D);
         telemetry.update();
 
@@ -194,7 +196,7 @@ public class Blue extends LinearOpMode {
             intake_midR.setPower(IntakeMotorStatus ? IntakePower : 0.0);
 
             //----- vertical -----
-            if (gamepad1.left_bumper){
+            if (gamepad2.left_bumper){
                 vertical_left.setPower(VerticalPower);
                 vertical_right.setPower(VerticalPower);
             } else {
@@ -202,9 +204,18 @@ public class Blue extends LinearOpMode {
                 vertical_left.setPower(0);
             }
 
+            boolean verticaltoggle = gamepad1.dpad_right && !lastVerticalToggleButton;
+            lastVerticalToggleButton = gamepad1.dpad_right;
+
+            if (verticaltoggle) VerticalToggleMotorStatus = !VerticalToggleMotorStatus;
+            {
+                vertical_left.setPower(VerticalToggleMotorStatus ? 1:0);
+                vertical_right.setPower(VerticalToggleMotorStatus ? 1:0);
+            }
+
             //----- shoot -----
-            boolean shootPressed = gamepad1.x && !lastShooterToggleBtn;
-            lastShooterToggleBtn = gamepad1.x;
+            boolean shootPressed = gamepad2.x && !lastShooterToggleBtn;
+            lastShooterToggleBtn = gamepad2.x;
 
             if (shootPressed) {
                 shootMotorStatus = !shootMotorStatus;
@@ -218,6 +229,10 @@ public class Blue extends LinearOpMode {
 
             updateAprilTag20Aim(dt);
             updateTelemetry();
+
+            //----- shoot angle -----
+            shoot_angle.setPower(gamepad2.right_stick_y);
+            turret.setPower(gamepad2.left_stick_x);
         }
 
         turret.setPower(0.0);
@@ -225,7 +240,7 @@ public class Blue extends LinearOpMode {
     }
 
     private void updateAprilTag20Aim(double dt) {
-        autoAimActive = gamepad1.right_bumper;
+        autoAimActive = gamepad2.right_bumper;
         LLResultTypes.FiducialResult tag20 = findAprilTag20();
         tag20Visible = tag20 != null;
 
