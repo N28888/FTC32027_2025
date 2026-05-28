@@ -77,6 +77,18 @@ public class Blue extends LinearOpMode {
         public static double shotAngleDistanceKDegPerM = 0.0;
         public static double angleManualStepPerSec = 0.25;
 
+        // --- AprilTag ty 估距 -> shoot angle servo position ---
+        public static boolean useTagDistanceShootAngle = true;
+        public static double shotCameraHeightM = 0.30;
+        public static double shotTagCenterHeightM = 0.90;
+        public static double shotCameraPitchDeg = 0.0;
+        public static double shotDistanceScale = 2.45 / 1.59;
+        public static double shotDistanceOffsetM = 0.0;
+        public static double shotReferenceDistanceM = 2.45;
+        public static double shotReferenceServoPos = 0.500;
+        public static double shotServoPosPerMeter = 0.0;
+        public static double shotDistanceFilterAlpha = 0.45;
+
         // --- 误差滤波 ---
         public static double errAlpha = 0.55;
 
@@ -99,6 +111,10 @@ public class Blue extends LinearOpMode {
 
         // --- “看到目标 UI hold”（不参与控制）---
         public static double tagHoldSeconds = 0.25;
+
+        // --- Drive input deadband ---
+        public static double driveStickDeadband = 0.06;
+        public static double driveRotateDeadband = 0.08;
     }
 
     // ---------------- 硬件 ----------------
@@ -172,6 +188,8 @@ public class Blue extends LinearOpMode {
     private double targetErrorDeg = 0.0;
     private int targetSeenId = -1;
     private double targetSeenTxDeg = 0.0;
+    private double targetSeenTyDeg = 0.0;
+    private double targetSeenArea = 0.0;
     private double lastSeenErrorDeg = 0.0;
     private double turretTargetDeg = 0.0;
     private double turretMeasuredDeg = 0.0;
@@ -180,8 +198,12 @@ public class Blue extends LinearOpMode {
     private double lastTurretLogicalPower = 0.0;
     private double targetDistanceM = 0.0;
     private double targetHorizontalDistanceM = 0.0;
+    private double rawTagHorizontalDistanceM = Double.NaN;
+    private double calibratedTagHorizontalDistanceM = Double.NaN;
+    private double filteredTagHorizontalDistanceM = Double.NaN;
     private double shotAngleDeg = 0.0;
     private double shootAngleServoPos = 0.5;
+    private String shotAngleMode = "Manual";
 
     // ===== 红灯闪烁 timer（替代 sleep）=====
     private final ElapsedTime redBlinkTimer = new ElapsedTime();
@@ -280,9 +302,9 @@ public class Blue extends LinearOpMode {
             // =========================
             // DRIVE 输入
             // =========================
-            double forward = -gamepad1.right_stick_y;
-            double pan     =  gamepad1.right_stick_x;
-            double rotate  =  gamepad1.left_stick_x;
+            double forward = applyDeadband(-gamepad1.right_stick_y, DriveTuning.driveStickDeadband);
+            double pan     = applyDeadband( gamepad1.right_stick_x, DriveTuning.driveStickDeadband);
+            double rotate  = applyDeadband( gamepad1.left_stick_x, DriveTuning.driveRotateDeadband);
 
             double lf = forward + pan + rotate;
             double rf = forward - pan - rotate;
@@ -418,6 +440,8 @@ public class Blue extends LinearOpMode {
 
             telemetry.addData("TagSeenId", targetSeenId);
             telemetry.addData("TagTX(deg)", String.format("%.2f", targetSeenTxDeg));
+            telemetry.addData("TagTY(deg)", String.format("%.2f", targetSeenTyDeg));
+            telemetry.addData("TagArea", String.format("%.2f", targetSeenArea));
             telemetry.addData("ErrDeg", String.format("%.2f", targetErrorDeg));
             telemetry.addData("LastSeenErrDeg", String.format("%.2f", lastSeenErrorDeg));
             telemetry.addData("Turret", String.format("meas=%.1f target=%.1f err=%.1f power=%.2f",
@@ -426,6 +450,26 @@ public class Blue extends LinearOpMode {
                     turretPidP, turretPidI, turretPidD, turretErrorRateDegPerSec));
             telemetry.addData("Shot", String.format("dist=%.2f horiz=%.2f angle=%.1f servo=%.3f",
                     targetDistanceM, targetHorizontalDistanceM, shotAngleDeg, shootAngleServoPos));
+            telemetry.addData("ShotMode", shotAngleMode);
+            telemetry.addData("ShotTagDist", String.format("raw=%.2f cal=%.2f filt=%.2f",
+                    rawTagHorizontalDistanceM, calibratedTagHorizontalDistanceM, filteredTagHorizontalDistanceM));
+            telemetry.addData("ShotRef", String.format("%.2f m -> %.3f slope=%.3f",
+                    DriveTuning.shotReferenceDistanceM,
+                    DriveTuning.shotReferenceServoPos,
+                    DriveTuning.shotServoPosPerMeter));
+            telemetry.addData("LL Auto Aim", rbAimHeld ? "RB Held" : "Off");
+            telemetry.addData("LL AprilTag", tagVisibleNow
+                    ? String.format("Visible id=%d", targetSeenId)
+                    : "Not Found");
+            telemetry.addData("LL Tag tx/ty", "%.2f / %.2f deg", targetSeenTxDeg, targetSeenTyDeg);
+            telemetry.addData("LL Tag area", "%.2f", targetSeenArea);
+            telemetry.addData("LL Tag distance", "raw=%.2f cal=%.2f filt=%.2f m",
+                    rawTagHorizontalDistanceM, calibratedTagHorizontalDistanceM, filteredTagHorizontalDistanceM);
+            telemetry.addData("LL Shoot angle", "mode=%s pos=%.3f", shotAngleMode, shootAngleServoPos);
+            telemetry.addData("LL Shoot ref", "%.2f m -> %.3f slope=%.3f",
+                    DriveTuning.shotReferenceDistanceM,
+                    DriveTuning.shotReferenceServoPos,
+                    DriveTuning.shotServoPosPerMeter);
             telemetry.addData("FiltTurretErr", String.format("%.2f", filtErr));
 
             telemetry.addData("Intake", IntakeMotorStatus ? "ON" : "OFF");
@@ -506,6 +550,7 @@ public class Blue extends LinearOpMode {
             }
         } else {
             aimMode = "Manual";
+            shotAngleMode = "Manual";
             alignedToTag = false;
             resetTurretPid();
             double manualInput = gamepad2.left_stick_x;
@@ -559,7 +604,13 @@ public class Blue extends LinearOpMode {
         shotAngleDeg = Math.toDegrees(Math.atan2(dz, targetHorizontalDistanceM))
                 + DriveTuning.shotAngleOffsetDeg
                 + DriveTuning.shotAngleDistanceKDegPerM * targetHorizontalDistanceM;
-        shootAngleServoPos = angleDegToServo(shotAngleDeg);
+        if (DriveTuning.useTagDistanceShootAngle && !Double.isNaN(filteredTagHorizontalDistanceM)) {
+            shootAngleServoPos = distanceToShootAngleServo(filteredTagHorizontalDistanceM);
+            shotAngleMode = "TagDistance";
+        } else {
+            shootAngleServoPos = angleDegToServo(shotAngleDeg);
+            shotAngleMode = "3D";
+        }
 
         alignedToTag = Math.abs(turretErrorDeg) <= DriveTuning.turretDeadbandDeg;
         return true;
@@ -648,6 +699,12 @@ public class Blue extends LinearOpMode {
         return clamp(pos, DriveTuning.angleServoMinPos, DriveTuning.angleServoMaxPos);
     }
 
+    private double distanceToShootAngleServo(double distanceM) {
+        double pos = DriveTuning.shotReferenceServoPos
+                + (distanceM - DriveTuning.shotReferenceDistanceM) * DriveTuning.shotServoPosPerMeter;
+        return clamp(pos, DriveTuning.angleServoMinPos, DriveTuning.angleServoMaxPos);
+    }
+
     private double slew(double requested, double previous, double dt, double maxPerSec) {
         double maxDelta = Math.max(0.0, maxPerSec) * Math.max(0.001, dt);
         return clamp(requested, previous - maxDelta, previous + maxDelta);
@@ -663,7 +720,11 @@ public class Blue extends LinearOpMode {
         limelightResultValid = false;
         targetSeenId = -1;
         targetSeenTxDeg = 0.0;
+        targetSeenTyDeg = 0.0;
+        targetSeenArea = 0.0;
         targetErrorDeg = 0.0;
+        rawTagHorizontalDistanceM = Double.NaN;
+        calibratedTagHorizontalDistanceM = Double.NaN;
 
         LLResult result = limelight.getLatestResult();
         if (result != null && result.isValid()) {
@@ -672,10 +733,13 @@ public class Blue extends LinearOpMode {
             List<LLResultTypes.FiducialResult> fiducials = result.getFiducialResults();
             LLResultTypes.FiducialResult best = chooseBestFiducial(fiducials);
             if (best != null) {
-                setVisibleTarget(best.getFiducialId(), best.getTargetXDegrees());
+                setVisibleTarget(best.getFiducialId(),
+                        best.getTargetXDegrees(),
+                        best.getTargetYDegrees(),
+                        best.getTargetArea());
             } else if (DriveTuning.targetTagId == -1
                     || (!DriveTuning.strictIdFilter && (fiducials == null || fiducials.isEmpty()))) {
-                setVisibleTarget(-1, result.getTx());
+                setVisibleTarget(-1, result.getTx(), result.getTy(), 0.0);
             }
 
             if (tagVisibleNow) updateBotposeStatus(result);
@@ -693,6 +757,10 @@ public class Blue extends LinearOpMode {
 
         if (poseValidNow) poseVisibleFrames++;
         else poseVisibleFrames = 0;
+
+        if (!tagVisibleNow) {
+            filteredTagHorizontalDistanceM = Double.NaN;
+        }
     }
 
     private void updateBotposeStatus(LLResult result) {
@@ -718,10 +786,49 @@ public class Blue extends LinearOpMode {
         return Math.max(lo, Math.min(hi, v));
     }
 
+    private static double applyDeadband(double value, double deadband) {
+        return Math.abs(value) > Math.abs(deadband) ? value : 0.0;
+    }
+
     private static double wrapDeg(double deg) {
         while (deg > 180.0) deg -= 360.0;
         while (deg <= -180.0) deg += 360.0;
         return deg;
+    }
+
+    private double estimateHorizontalDistanceFromTy(double targetYDeg) {
+        double heightDelta = DriveTuning.shotTagCenterHeightM - DriveTuning.shotCameraHeightM;
+        double angleRad = Math.toRadians(DriveTuning.shotCameraPitchDeg + targetYDeg);
+        double tan = Math.tan(angleRad);
+        if (Math.abs(tan) < 0.001) {
+            return Double.NaN;
+        }
+
+        double distance = heightDelta / tan;
+        return distance > 0.0 ? distance : Double.NaN;
+    }
+
+    private double applyShotDistanceCalibration(double rawDistanceM) {
+        if (Double.isNaN(rawDistanceM)) {
+            return Double.NaN;
+        }
+        return rawDistanceM * DriveTuning.shotDistanceScale + DriveTuning.shotDistanceOffsetM;
+    }
+
+    private void updateShotDistanceFromTag(double targetYDeg) {
+        rawTagHorizontalDistanceM = estimateHorizontalDistanceFromTy(targetYDeg);
+        calibratedTagHorizontalDistanceM = applyShotDistanceCalibration(rawTagHorizontalDistanceM);
+        if (Double.isNaN(calibratedTagHorizontalDistanceM)) {
+            return;
+        }
+
+        double alpha = clamp(DriveTuning.shotDistanceFilterAlpha, 0.0, 1.0);
+        if (Double.isNaN(filteredTagHorizontalDistanceM)) {
+            filteredTagHorizontalDistanceM = calibratedTagHorizontalDistanceM;
+        } else {
+            filteredTagHorizontalDistanceM = alpha * calibratedTagHorizontalDistanceM
+                    + (1.0 - alpha) * filteredTagHorizontalDistanceM;
+        }
     }
 
     // =========================
@@ -760,13 +867,16 @@ public class Blue extends LinearOpMode {
         return best;
     }
 
-    private void setVisibleTarget(int id, double txDeg) {
+    private void setVisibleTarget(int id, double txDeg, double tyDeg, double area) {
         tagVisibleNow = true;
         hasTargetTag = true;
         tagSeenTimer.reset();
 
         targetSeenId = id;
         targetSeenTxDeg = txDeg;
+        targetSeenTyDeg = tyDeg;
+        targetSeenArea = area;
+        updateShotDistanceFromTag(tyDeg);
 
         targetErrorDeg = txDeg - DriveTuning.LIMELIGHT_CENTER_TX;
         lastSeenErrorDeg = targetErrorDeg;
