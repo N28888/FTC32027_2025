@@ -12,11 +12,6 @@
 4: pullup mid CRServo (pullup_mid)
 ```
 
-### I2C
-
-```
-1: Huskeylens (cam)
-```
 
 ## Expansion Hub
 ### Motor
@@ -28,12 +23,17 @@
 ```
 ### Servo
 ```
-0: Camera rotation Servo (cam_rotate)
+2: Camera rotation Servo (cam_rotate)
 3: pullup back CRServo (pullup_back)
 4: pullup front R CRServo (pullup_frontR))
+5: LED (statusLed)
 ```
 
+### I2C
 
+```
+1: Huskeylens (huskeyLens)
+```
 
 
 
@@ -44,4 +44,5 @@
 #### Drive: Joystick
 #### Intake: left_bumper
 #### Pullup: dpad_up
-#### Shoot: right_bumper
+#### Shoot: y
+#### Auto Aim: right_bumper

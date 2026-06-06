@@ -85,7 +85,7 @@ public class Auto_Right extends LinearOpMode {
         if (isStopRequested()) return;
 
         // Move back
-        driveStraight(-1, 850);
+        driveStraight(-1, 1050);
         sleep(500);
 
         // shootMotor start
@@ -98,9 +98,9 @@ public class Auto_Right extends LinearOpMode {
         pausePullUp(2000);
         runPullUp(600);
 
-        inertialPullUp();
-        adjustDirectionL(0.2,200);
-        sleep(500);
+        //inertialPullUp();
+//        adjustDirectionR(0.2,500);
+//        sleep(500);
 
         runPullUp(600);
 
